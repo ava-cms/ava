@@ -61,6 +61,7 @@ $successMsg = $successMessage ?? 'Changes saved successfully.';
 
 <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/edit" class="editor-form" id="editor-form">
     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
+    <input type="hidden" name="_file_mtime" value="<?= htmlspecialchars((string) ($fileMtime ?? 0)) ?>">
 
     <?php if ($saved): ?>
     <div class="alert alert-success mb-4">

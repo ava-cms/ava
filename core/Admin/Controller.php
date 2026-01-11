@@ -776,89 +776,99 @@ final class Controller
             if ($csrfError !== null) {
                 $error = $csrfError;
             } else {
-                // Get new filename from form (without .md extension)
-                $newFilename = trim($request->post('filename', ''));
+                // Optimistic locking: check if file was modified since form was loaded
+                $expectedMtime = (int) $request->post('_file_mtime', '0');
+                $currentMtime = file_exists($item->filePath()) ? filemtime($item->filePath()) : 0;
                 
-                // Parse the unified file content
-                $fileContent = $request->post('file_content', '');
-                $parsed = $this->parseFileContent($fileContent);
+                if ($expectedMtime > 0 && $currentMtime > $expectedMtime) {
+                    $error = 'This file was modified by another user or process. Please refresh and try again.';
+                }
                 
-                if ($parsed['error']) {
-                    $error = $parsed['error'];
-                } else {
-                    $fm = $parsed['frontmatter'];
-                    $body = $parsed['body'];
+                if (!$error) {
+                    // Get new filename from form (without .md extension)
+                    $newFilename = trim($request->post('filename', ''));
                     
-                    $title = trim($fm['title'] ?? '');
-                    $newSlug = trim($fm['slug'] ?? $slug);
-
-                    // Validate title
-                    if (empty($title)) {
-                        $error = 'Title is required in frontmatter.';
+                    // Parse the unified file content
+                    $fileContent = $request->post('file_content', '');
+                    $parsed = $this->parseFileContent($fileContent);
+                    
+                    if ($parsed['error']) {
+                        $error = $parsed['error'];
                     } else {
-                        // Validate slug with strict security checks
-                        $slugResult = $this->validateSlug($newSlug);
-                        if (!$slugResult['valid']) {
-                            $error = $slugResult['error'];
+                        $fm = $parsed['frontmatter'];
+                        $body = $parsed['body'];
+                        
+                        $title = trim($fm['title'] ?? '');
+                        $newSlug = trim($fm['slug'] ?? $slug);
+
+                        // Validate title
+                        if (empty($title)) {
+                            $error = 'Title is required in frontmatter.';
                         } else {
-                            $newSlug = $slugResult['slug'];
-                            
-                            // Get current filename (without .md)
-                            $currentFilename = pathinfo(basename($item->filePath()), PATHINFO_FILENAME);
-                            
-                            // If no new filename provided, keep the current one
-                            if (empty($newFilename)) {
-                                $newFilename = $currentFilename;
-                            }
-                            
-                            // Validate filename with strict security checks
-                            $filenameResult = $this->validateFilename($newFilename);
-                            if (!$filenameResult['valid']) {
-                                $error = 'Filename: ' . $filenameResult['error'];
+                            // Validate slug with strict security checks
+                            $slugResult = $this->validateSlug($newSlug);
+                            if (!$slugResult['valid']) {
+                                $error = $slugResult['error'];
                             } else {
-                                $newFilename = $filenameResult['filename'];
+                                $newSlug = $slugResult['slug'];
                                 
-                                // Check for duplicate slug (if changed)
-                                if ($newSlug !== $slug) {
-                                    $existing = $repository->get($type, $newSlug);
-                                    if ($existing !== null) {
-                                        $error = "Content with slug '{$newSlug}' already exists.";
-                                    }
+                                // Get current filename (without .md)
+                                $currentFilename = pathinfo(basename($item->filePath()), PATHINFO_FILENAME);
+                                
+                                // If no new filename provided, keep the current one
+                                if (empty($newFilename)) {
+                                    $newFilename = $currentFilename;
                                 }
-
-                                if (!$error) {
-                                    // Security check on body content
-                                    $security = new ContentSecurity();
-                                    $securityResult = $security->validate($body);
+                                
+                                // Validate filename with strict security checks
+                                $filenameResult = $this->validateFilename($newFilename);
+                                if (!$filenameResult['valid']) {
+                                    $error = 'Filename: ' . $filenameResult['error'];
+                                } else {
+                                    $newFilename = $filenameResult['filename'];
                                     
-                                    if (!$securityResult['valid']) {
-                                        $securityWarnings = $securityResult['errors'];
-                                        $error = $securityResult['errors'][0];
-                                    } else {
-                                        $securityWarnings = $securityResult['warnings'];
-                                        
-                                        // Update the content file (using validated filename)
-                                        $result = $this->updateContentFileRaw($item, $type, $typeConfig, $newFilename, $fileContent, $currentFilename);
+                                    // Check for duplicate slug (if changed)
+                                    if ($newSlug !== $slug) {
+                                        $existing = $repository->get($type, $newSlug);
+                                        if ($existing !== null) {
+                                            $error = "Content with slug '{$newSlug}' already exists.";
+                                        }
+                                    }
 
-                                        if ($result === true) {
-                                            $this->auth->regenerateCsrf();
-                                            $this->logAction('INFO', "Updated {$type} '{$title}' (file: {$newFilename}.md, slug: {$newSlug})");
-                                            
-                                            // Rebuild cache
-                                            $this->app->indexer()->rebuild();
-                                            
-                                            // Stay on same page with success message
-                                            $successMessage = "'{$title}' saved successfully.";
-                                            
-                                            // If slug changed, redirect to new URL
-                                            if ($newSlug !== $slug) {
-                                                return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($newSlug) . '/edit?saved=1');
-                                            }
-                                            
-                                            // Clear POST so view reads fresh file from disk
-                                            unset($_POST['file_content'], $_POST['filename']);
+                                    if (!$error) {
+                                        // Security check on body content
+                                        $security = new ContentSecurity();
+                                        $securityResult = $security->validate($body);
+                                        
+                                        if (!$securityResult['valid']) {
+                                            $securityWarnings = $securityResult['errors'];
+                                            $error = $securityResult['errors'][0];
                                         } else {
-                                            $error = $result;
+                                            $securityWarnings = $securityResult['warnings'];
+                                            
+                                            // Update the content file (using validated filename)
+                                            $result = $this->updateContentFileRaw($item, $type, $typeConfig, $newFilename, $fileContent, $currentFilename);
+
+                                            if ($result === true) {
+                                                $this->auth->regenerateCsrf();
+                                                $this->logAction('INFO', "Updated {$type} '{$title}' (file: {$newFilename}.md, slug: {$newSlug})");
+                                                
+                                                // Rebuild cache
+                                                $this->app->indexer()->rebuild();
+                                                
+                                                // Stay on same page with success message
+                                                $successMessage = "'{$title}' saved successfully.";
+                                                
+                                                // If slug changed, redirect to new URL
+                                                if ($newSlug !== $slug) {
+                                                    return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($newSlug) . '/edit?saved=1');
+                                                }
+                                                
+                                                // Clear POST so view reads fresh file from disk
+                                                unset($_POST['file_content'], $_POST['filename']);
+                                            } else {
+                                                $error = $result;
+                                            }
                                         }
                                     }
                                 }
@@ -875,6 +885,9 @@ final class Controller
             $availableTerms[$taxName] = $repository->terms($taxName);
         }
 
+        // Get current file modification time for optimistic locking
+        $fileMtime = file_exists($item->filePath()) ? filemtime($item->filePath()) : 0;
+        
         $data = [
             'type' => $type,
             'item' => $item,
@@ -885,6 +898,7 @@ final class Controller
             'successMessage' => $successMessage ?? null,
             'securityWarnings' => $securityWarnings,
             'csrf' => $this->auth->csrfToken(),
+            'fileMtime' => $fileMtime,
             'site' => [
                 'name' => $this->app->config('site.name'),
                 'url' => $this->app->config('site.base_url'),
