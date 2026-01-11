@@ -675,8 +675,8 @@ final class Indexer
             if (str_ends_with($part, '.md')) {
                 $part = substr($part, 0, -3);
             }
-            // Handle index files
-            if ($part !== 'index') {
+            // Handle index files (index.md or _index.md)
+            if ($part !== 'index' && $part !== '_index') {
                 $pathParts[] = $part;
             }
         }
@@ -685,6 +685,11 @@ final class Indexer
 
         if ($base === '/') {
             return '/' . ltrim($path, '/') ?: '/';
+        }
+
+        // Handle empty path (index.md) - return just the base without trailing slash
+        if ($path === '') {
+            return rtrim($base, '/');
         }
 
         return rtrim($base, '/') . '/' . $path;
