@@ -521,9 +521,13 @@ final class MediaUploader
             return ['success' => false, 'error' => 'Failed to serialize sanitized SVG'];
         }
 
-        if (@file_put_contents($destPath, $sanitized) === false) {
+        // Write with exclusive lock to prevent race conditions
+        if (@file_put_contents($destPath, $sanitized, LOCK_EX) === false) {
             return ['success' => false, 'error' => 'Failed to write sanitized SVG'];
         }
+
+        // Set secure file permissions (readable, not executable)
+        @chmod($destPath, 0644);
 
         return ['success' => true];
     }
@@ -624,7 +628,7 @@ final class MediaUploader
 
         // Method 2: getimagesize() for images (validates actual image data)
         $imageInfo = @getimagesize($filePath);
-        if ($imageInfo !== false && isset($imageInfo['mime'])) {
+        if ($imageInfo !== false) {
             $detectedTypes['getimagesize'] = $imageInfo['mime'];
         }
 

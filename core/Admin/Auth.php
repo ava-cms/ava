@@ -237,9 +237,9 @@ final class Auth
 
         $users[$email]['last_login'] = date('Y-m-d H:i:s');
 
-        // Write back to file
+        // Write back to file with exclusive lock to prevent corruption
         $content = "<?php\n\ndeclare(strict_types=1);\n\n/**\n * Users Configuration\n *\n * Managed by CLI. Do not edit manually.\n */\n\nreturn " . var_export($users, true) . ";\n";
-        file_put_contents($this->usersFile, $content);
+        file_put_contents($this->usersFile, $content, LOCK_EX);
 
         // Update cache
         $this->users = $users;
@@ -330,33 +330,33 @@ final class Auth
 
     /**
      * Record a failed login attempt.
+     * 
+     * Uses exclusive file locking to prevent race conditions where
+     * concurrent requests could bypass rate limiting.
      */
     private function recordFailedAttempt(string $ip): void
     {
         $path = $this->getRateLimitPath();
-        $data = [];
-
-        if (file_exists($path)) {
-            $content = file_get_contents($path);
-            $data = json_decode($content, true) ?? [];
-        }
-
         $ipHash = hash('sha256', $ip);
-        $current = $data[$ipHash] ?? ['count' => 0, 'last_attempt' => 0];
 
-        // Reset if window expired
-        if (time() - $current['last_attempt'] > self::ATTEMPT_WINDOW) {
-            $current = ['count' => 0, 'last_attempt' => 0];
-        }
+        // Use exclusive lock for the entire read-modify-write cycle
+        $this->withFileLock($path, function ($data) use ($ipHash) {
+            $current = $data[$ipHash] ?? ['count' => 0, 'last_attempt' => 0];
 
-        $current['count']++;
-        $current['last_attempt'] = time();
-        $data[$ipHash] = $current;
+            // Reset if window expired
+            if (time() - $current['last_attempt'] > self::ATTEMPT_WINDOW) {
+                $current = ['count' => 0, 'last_attempt' => 0];
+            }
 
-        // Clean up old entries
-        $this->cleanupOldAttempts($data);
+            $current['count']++;
+            $current['last_attempt'] = time();
+            $data[$ipHash] = $current;
 
-        file_put_contents($path, json_encode($data), LOCK_EX);
+            // Clean up old entries
+            $this->cleanupOldAttempts($data);
+
+            return $data;
+        });
     }
 
     /**
@@ -370,13 +370,64 @@ final class Auth
             return;
         }
 
-        $content = file_get_contents($path);
-        $data = json_decode($content, true) ?? [];
-
         $ipHash = hash('sha256', $ip);
-        unset($data[$ipHash]);
 
-        file_put_contents($path, json_encode($data), LOCK_EX);
+        $this->withFileLock($path, function ($data) use ($ipHash) {
+            unset($data[$ipHash]);
+            return $data;
+        });
+    }
+
+    /**
+     * Execute a callback with exclusive file lock on the rate limit file.
+     * Ensures atomic read-modify-write operations.
+     * 
+     * @param string $path File path
+     * @param callable $callback Receives current data, returns modified data
+     */
+    private function withFileLock(string $path, callable $callback): void
+    {
+        // Ensure directory exists
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        // Open file for reading and writing, create if doesn't exist
+        $handle = @fopen($path, 'c+');
+        if ($handle === false) {
+            return; // Fail silently - don't break login on file issues
+        }
+
+        try {
+            // Acquire exclusive lock (blocking)
+            if (!flock($handle, LOCK_EX)) {
+                return;
+            }
+
+            // Read current data
+            $content = '';
+            $size = filesize($path);
+            if ($size > 0) {
+                rewind($handle);
+                $content = fread($handle, $size);
+            }
+            $data = $content ? (json_decode($content, true) ?? []) : [];
+
+            // Execute callback to modify data
+            $data = $callback($data);
+
+            // Write back
+            ftruncate($handle, 0);
+            rewind($handle);
+            fwrite($handle, json_encode($data));
+            fflush($handle);
+
+            // Release lock
+            flock($handle, LOCK_UN);
+        } finally {
+            fclose($handle);
+        }
     }
 
     /**

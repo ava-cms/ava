@@ -685,7 +685,8 @@ final class Indexer
         $path = implode('/', $pathParts);
 
         if ($base === '/') {
-            return '/' . ltrim($path, '/') ?: '/';
+            // For root base, just prepend slash (empty path becomes just /)
+            return $path === '' ? '/' : '/' . ltrim($path, '/');
         }
 
         // Handle empty path (index.md) - return just the base without trailing slash

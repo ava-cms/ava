@@ -19,6 +19,7 @@ final class TestRunner
     // ANSI colors (matching CLI palette)
     private const RESET = "\033[0m";
     private const PRIMARY = "\033[38;2;55;235;243m";     // Electric Blue
+    /** @phpstan-ignore-next-line Kept for future verbose mode */
     private const ACCENT = "\033[38;2;228;85;174m";      // Frostbite pink
     private const RED = "\033[38;2;248;113;113m";
     private const GREEN = "\033[38;2;52;211;153m";
@@ -32,6 +33,7 @@ final class TestRunner
     private int $failed = 0;
     private int $skipped = 0;
     private array $failures = [];
+    /** @phpstan-ignore-next-line Kept for future verbose mode */
     private bool $verbose = false;
     private bool $quiet = false;
     private bool $release = false;

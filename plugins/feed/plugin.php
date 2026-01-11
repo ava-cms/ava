@@ -50,7 +50,7 @@ return [
         $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
 
         // Helper to generate RSS XML
-        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $siteName, $config, $contentTypes, $app) {
+        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $config, $contentTypes, $app) {
             $repository = $app->repository();
             $routes = $repository->routes();
 
@@ -122,7 +122,7 @@ return [
         };
 
         // Combined feed at /feed.xml
-        $router->addRoute('/feed.xml', function (Request $request) use ($app, $baseUrl, $siteName, $config, $generateFeed) {
+        $router->addRoute('/feed.xml', function (Request $request) use ($app, $siteName, $config, $generateFeed) {
             $repository = $app->repository();
             $allItems = [];
 
@@ -164,7 +164,7 @@ return [
         });
 
         // Per-type feeds at /feed/{type}.xml
-        $router->addRoute('/feed/{type}.xml', function (Request $request, array $params) use ($app, $baseUrl, $siteName, $config, $generateFeed, $contentTypes) {
+        $router->addRoute('/feed/{type}.xml', function (Request $request, array $params) use ($app, $siteName, $config, $generateFeed, $contentTypes) {
             $type = $params['type'] ?? '';
             $repository = $app->repository();
 
@@ -203,12 +203,12 @@ return [
         });
 
         // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($app, $baseUrl, $config, $contentTypes) {
+        Hooks::addFilter('admin.register_pages', function (array $pages) use ($baseUrl, $config) {
             $pages['feeds'] = [
                 'label' => 'RSS Feeds',
                 'icon' => 'rss_feed',
                 'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl, $config, $contentTypes) {
+                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl, $config) {
                     $repository = $app->repository();
                     $types = $repository->types();
 

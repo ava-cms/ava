@@ -268,6 +268,12 @@ final class SqliteBackend implements BackendInterface
             $value = $filter['value'];
             $operator = $filter['operator'];
 
+            // Validate field name to prevent SQL injection via JSON path
+            // Only allow alphanumeric and underscore, with reasonable length limit
+            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $field)) {
+                continue; // Skip invalid field names
+            }
+
             // Try to match against both direct column and meta JSON
             $sqlOp = match ($operator) {
                 '=' => '=',

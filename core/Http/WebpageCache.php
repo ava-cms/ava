@@ -272,12 +272,12 @@ final class WebpageCache
             return isset($_SESSION['ava_admin_user']);
         }
 
-        // If session not active but session cookie exists, we need to peek
-        // Start session in read-only mode to check, then close immediately
-        $sessionName = session_name();
-        if (isset($_COOKIE[$sessionName])) {
-            // Temporarily start session to check
-            session_start();
+        // Check for admin session cookie (ava_admin, not the default session name)
+        // The admin uses a separate session with this specific name
+        if (isset($_COOKIE['ava_admin'])) {
+            // Temporarily start admin session to check login status
+            @session_name('ava_admin');
+            @session_start();
             $isLoggedIn = isset($_SESSION['ava_admin_user']);
             session_write_close(); // Close immediately to not block
             return $isLoggedIn;

@@ -35,7 +35,7 @@
             </span>
         </div>
         <div class="card-body">
-            <form method="POST" action="<?= $admin_url ?>/redirects">
+            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/redirects">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                 <input type="hidden" name="action" value="create">
                 
@@ -155,7 +155,7 @@
                     </td>
                     <td class="text-sm text-tertiary"><?= htmlspecialchars($redirect['created'] ?? 'Unknown') ?></td>
                     <td>
-                        <form method="POST" action="<?= $admin_url ?>/redirects" style="display: inline;">
+                        <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/redirects" style="display: inline;">
                             <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="from" value="<?= htmlspecialchars($redirect['from']) ?>">

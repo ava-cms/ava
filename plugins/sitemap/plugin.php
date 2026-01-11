@@ -54,7 +54,7 @@ return [
         $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
 
         // Sitemap index route
-        $router->addRoute('/sitemap.xml', function (Request $request) use ($app, $baseUrl, $contentTypes) {
+        $router->addRoute('/sitemap.xml', function (Request $request) use ($app, $baseUrl) {
             $repository = $app->repository();
             $types = $repository->types();
 
@@ -154,12 +154,12 @@ return [
         }
 
         // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($app, $baseUrl, $contentTypes) {
+        Hooks::addFilter('admin.register_pages', function (array $pages) use ($baseUrl) {
             $pages['sitemap'] = [
                 'label' => 'Sitemap',
                 'icon' => 'map',
                 'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl, $contentTypes) {
+                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl) {
                     $repository = $app->repository();
                     $types = $repository->types();
 

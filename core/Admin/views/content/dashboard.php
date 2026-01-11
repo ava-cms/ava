@@ -192,7 +192,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-label">Total Size</span>
                 <span class="list-value"><?= $formatBytes($cache['size'] ?? 0) ?></span>
             </div>
-            <form method="POST" action="<?= $admin_url ?>/rebuild" class="mt-4">
+            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/rebuild" class="mt-4">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                 <button type="submit" class="btn btn-primary btn-sm">
                     <span class="material-symbols-rounded">refresh</span>
@@ -227,7 +227,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-value"><?= $webpageCache['ttl'] ? $webpageCache['ttl'] . 's' : 'Forever' ?></span>
             </div>
             <?php if ($webpageCache['count'] > 0): ?>
-            <form method="POST" action="<?= $admin_url ?>/flush-pages" class="mt-4">
+            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/flush-pages" class="mt-4">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                 <button type="submit" class="btn btn-secondary btn-sm">
                     <span class="material-symbols-rounded">delete_sweep</span>

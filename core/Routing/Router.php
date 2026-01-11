@@ -386,6 +386,8 @@ final class Router
 
     /**
      * Check if request has preview access.
+     * 
+     * Validates the preview token using timing-safe comparison.
      */
     private function hasPreviewAccess(Request $request): bool
     {
@@ -394,14 +396,18 @@ final class Router
         }
 
         $token = $request->query('token');
-        if (!$token) {
+        if (!$token || !is_string($token)) {
             return false;
         }
 
-        // Simple token validation - in production this should be more secure
         $expectedToken = $this->app->config('security.preview_token');
 
-        return $expectedToken !== null && hash_equals($expectedToken, $token);
+        // Reject if no token configured
+        if ($expectedToken === null || $expectedToken === '') {
+            return false;
+        }
+
+        return hash_equals($expectedToken, $token);
     }
 
     /**

@@ -448,8 +448,10 @@ final class Query
         // Store total count before pagination
         $this->totalCount = count($rawItems);
 
-        // Sort on raw arrays
-        $rawItems = $this->applySortRaw($rawItems);
+        // Sort on raw arrays (skip if search is active - already sorted by relevance)
+        if ($this->search === null || $this->search === '') {
+            $rawItems = $this->applySortRaw($rawItems);
+        }
 
         // Paginate - get just the slice we need
         $offset = ($this->page - 1) * $this->perPage;

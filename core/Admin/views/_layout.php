@@ -80,11 +80,20 @@
             </h2>
             <?php if (!empty($headerActions)): ?>
             <div class="header-actions">
+                <?php
+                // SECURITY NOTE: $headerActions contains pre-built HTML from Controller methods.
+                // All user-facing values within are escaped with htmlspecialchars() at construction.
+                // This variable must NEVER contain raw user input - only server-constructed HTML.
+                ?>
                 <?= $headerActions ?>
             </div>
             <?php endif; ?>
         </div>
 
+        <?php
+        // SECURITY NOTE: $pageContent is rendered HTML from admin view templates.
+        // Each view is responsible for escaping its own user-controlled data.
+        ?>
         <?= $pageContent ?? '' ?>
 
     </main>

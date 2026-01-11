@@ -316,6 +316,7 @@ final class Item
             'date' => $this->date()?->format('c'),
             'updated' => $this->updated()?->format('c'),
             'excerpt' => $this->excerpt(),
+            'body' => $this->rawContent,
             'template' => $this->template(),
             'parent' => $this->parent(),
             'order' => $this->order(),

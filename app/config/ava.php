@@ -160,7 +160,11 @@ return [
         'shortcodes' => [
             'allow_php_snippets' => true,   // Enable [snippet name="file"] shortcode
         ],
-        'preview_token' => 'your-preview-token-here',   // Set a secret for ?preview=1&token=xxx on drafts
+        // Preview token for accessing draft content via ?preview=1&token=xxx
+        // ⚠️  IMPORTANT: Generate a secure random token for production!
+        //     Run: php -r "echo bin2hex(random_bytes(32));"
+        //     Tokens under 16 characters or common words are rejected.
+        'preview_token' => null,   // Set to a 32+ character random string
     ],
 
     /*

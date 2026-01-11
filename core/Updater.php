@@ -47,7 +47,8 @@ final class Updater
         'redirects',
     ];
 
-    /** @var string[] Directories/files that should NEVER be touched */
+    /** @var string[] Directories/files that should NEVER be touched
+     * @phpstan-ignore-next-line Reserved for future use in update safety checks */
     private array $preserveDirs = [
         'content',
         'app',
@@ -77,7 +78,7 @@ final class Updater
      * Check for available updates.
      *
      * @param bool $force Force fresh check (bypass cache)
-     * @return array{available: bool, current: string, latest: string, release: ?array, error: ?string}
+     * @return array{available: bool, current: string, latest: string, release: ?array, error: ?string, from_cache?: bool, checked_at?: int}
      */
     public function check(bool $force = false): array
     {
@@ -123,12 +124,12 @@ final class Updater
                 'checked_at' => time(),
             ];
 
-            // Cache the result
+            // Cache the result with exclusive lock for concurrent safety
             $cacheDir = dirname($this->cacheFile);
             if (!is_dir($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
+                @mkdir($cacheDir, 0755, true);
             }
-            file_put_contents($this->cacheFile, json_encode($result, JSON_PRETTY_PRINT));
+            @file_put_contents($this->cacheFile, json_encode($result, JSON_PRETTY_PRINT), LOCK_EX);
 
             return $result;
 
@@ -471,14 +472,20 @@ final class Updater
 
             if ($item->isDir()) {
                 if (!is_dir($destPath)) {
-                    mkdir($destPath, 0755, true);
+                    if (!@mkdir($destPath, 0755, true)) {
+                        throw new \RuntimeException("Failed to create directory: {$destPath}");
+                    }
                 }
             } else {
                 $destDir = dirname($destPath);
                 if (!is_dir($destDir)) {
-                    mkdir($destDir, 0755, true);
+                    if (!@mkdir($destDir, 0755, true)) {
+                        throw new \RuntimeException("Failed to create directory: {$destDir}");
+                    }
                 }
-                copy($item->getPathname(), $destPath);
+                if (!@copy($item->getPathname(), $destPath)) {
+                    throw new \RuntimeException("Failed to copy file: {$item->getPathname()} -> {$destPath}");
+                }
             }
         }
     }
@@ -490,9 +497,13 @@ final class Updater
     {
         $destDir = dirname($dest);
         if (!is_dir($destDir)) {
-            mkdir($destDir, 0755, true);
+            if (!@mkdir($destDir, 0755, true)) {
+                throw new \RuntimeException("Failed to create directory: {$destDir}");
+            }
         }
-        copy($source, $dest);
+        if (!@copy($source, $dest)) {
+            throw new \RuntimeException("Failed to copy file: {$source} -> {$dest}");
+        }
     }
 
     /**

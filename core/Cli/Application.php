@@ -25,7 +25,6 @@ final class Application
     private const RESET = "\033[0m";
     private const BOLD = "\033[1m";
     private const DIM = "\033[90m";
-    private const ITALIC = "\033[3m";
 
     // Theme placeholder (will be replaced with actual theme color)
     private const PRIMARY = '__THEME__';
@@ -36,6 +35,14 @@ final class Application
     private const GREEN = "\033[38;2;52;211;153m";
     private const YELLOW = "\033[38;2;251;191;36m";
     private const WHITE = "\033[37m";
+    private const BLUE = "\033[38;2;96;165;250m";
+    private const CYAN = "\033[38;2;34;211;238m";
+
+    // Background colors
+    private const BG_GREEN = "\033[48;2;52;211;153m";
+    private const BG_RED = "\033[48;2;248;113;113m";
+    private const BG_YELLOW = "\033[48;2;251;191;36m";
+    private const BG_BLUE = "\033[48;2;96;165;250m";
 
     // Color themes (monochrome - single accent color)
     private const THEMES = [
@@ -364,11 +371,7 @@ final class Application
 
         // Reset OPcache if available (clears cached PHP bytecode)
         if (function_exists('opcache_reset')) {
-            try {
-                @opcache_reset();
-            } catch (\Throwable $e) {
-                // OPcache reset may fail in CLI mode, ignore silently
-            }
+            @opcache_reset();
         }
 
         $this->success('Content index rebuilt!');
@@ -512,8 +515,8 @@ final class Application
             return 1;
         }
 
-        // Write file
-        file_put_contents($filePath, $yaml);
+        // Write file with exclusive lock for concurrent safety
+        file_put_contents($filePath, $yaml, LOCK_EX);
 
         $relativePath = str_replace($this->app->path('') . '/', '', $filePath);
 
@@ -861,7 +864,7 @@ final class Application
     private function saveUsers(string $file, array $users): void
     {
         $content = "<?php\n\ndeclare(strict_types=1);\n\n/**\n * Users Configuration\n *\n * Managed by CLI. Do not edit manually.\n */\n\nreturn " . var_export($users, true) . ";\n";
-        file_put_contents($file, $content);
+        file_put_contents($file, $content, LOCK_EX);
     }
 
     // =========================================================================
@@ -1653,7 +1656,7 @@ final class Application
         $times = [];
         for ($i = 0; $i < $iterations; $i++) {
             $cacheFile = $cachePath . '/benchmark_test_' . $i . '.html';
-            $testHtml = $output ?? '<html><body>Test content</body></html>';
+            $testHtml = $output;
 
             $start = hrtime(true);
             file_put_contents($cacheFile, $testHtml, LOCK_EX);
@@ -1672,7 +1675,7 @@ final class Application
         // Test 3: Read from webpage cache
         // First, write a cache file
         $cacheFile = $cachePath . '/benchmark_test.html';
-        $testHtml = $output ?? '<html><body>Test content</body></html>';
+        $testHtml = $output;
         file_put_contents($cacheFile, $testHtml, LOCK_EX);
 
         $times = [];
@@ -2152,11 +2155,12 @@ final class Application
                     $yaml .= "  - {$item}\n";
                 }
             } else {
-                // Escape values that might need quoting
-                if (is_string($value) && (str_contains($value, ':') || str_contains($value, '#'))) {
-                    $value = '"' . addslashes($value) . '"';
+                // Escape values that might need quoting (cast to string for safety)
+                $stringValue = (string) $value;
+                if (str_contains($stringValue, ':') || str_contains($stringValue, '#')) {
+                    $stringValue = '"' . addslashes($stringValue) . '"';
                 }
-                $yaml .= "{$key}: {$value}\n";
+                $yaml .= "{$key}: {$stringValue}\n";
             }
         }
         $yaml .= "---\n\n";
@@ -2181,13 +2185,14 @@ final class Application
             $content = "## " . implode(' ', $headingWords) . "\n\n" . $content;
         }
 
-        // Write file
-        return file_put_contents($filePath, $yaml . $content) !== false;
+        // Write file with exclusive lock
+        return file_put_contents($filePath, $yaml . $content, LOCK_EX) !== false;
     }
 
     /**
      * Get random words from lorem ipsum.
      */
+
     private function randomWords(int $count): array
     {
         $words = [];
@@ -2329,6 +2334,7 @@ final class Application
 
     /**
      * Show a status badge.
+     * @phpstan-ignore-next-line Kept for future CLI commands
      */
     private function badge(string $text, string $type = 'info'): string
     {

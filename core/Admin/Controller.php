@@ -79,14 +79,8 @@ final class Controller
                     return Response::redirect($this->adminUrl());
                 }
 
-                // Check if now locked out after this failed attempt
-                if ($this->auth->isLockedOut()) {
-                    $remaining = $this->auth->getLockoutRemaining();
-                    $minutes = (int) ceil($remaining / 60);
-                    $error = "Too many login attempts. Please try again in {$minutes} minute(s).";
-                } else {
-                    $error = 'Invalid email or password.';
-                }
+                // Set error for failed attempt
+                $error = 'Invalid email or password.';
                 $this->logAction('WARNING', 'Login failed for: ' . $email);
             }
         }
@@ -1098,9 +1092,9 @@ final class Controller
         }
         $terms[] = $newTerm;
 
-        // Write back
+        // Write back with exclusive lock for concurrent safety
         $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);
-        if (file_put_contents($filePath, $yaml) === false) {
+        if (file_put_contents($filePath, $yaml, LOCK_EX) === false) {
             return 'Failed to write taxonomy file.';
         }
 
@@ -1135,9 +1129,9 @@ final class Controller
         $terms = array_filter($terms, fn($term) => ($term['slug'] ?? '') !== $slug);
         $terms = array_values($terms);
 
-        // Write back
+        // Write back with exclusive lock for concurrent safety
         $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);
-        if (file_put_contents($filePath, $yaml) === false) {
+        if (file_put_contents($filePath, $yaml, LOCK_EX) === false) {
             return 'Failed to write taxonomy file.';
         }
 
@@ -1181,7 +1175,7 @@ final class Controller
             $fileContent = preg_replace('/^---\n/', "---\nid: {$newId}\n", $fileContent);
         }
 
-        if (file_put_contents($filePath, $fileContent) === false) {
+        if (file_put_contents($filePath, $fileContent, LOCK_EX) === false) {
             return 'Failed to write content file.';
         }
 
@@ -1217,8 +1211,8 @@ final class Controller
             return 'A file with the new slug already exists.';
         }
 
-        // Write to new path
-        if (file_put_contents($newFilePath, $fileContent) === false) {
+        // Write to new path with exclusive lock for concurrent safety
+        if (file_put_contents($newFilePath, $fileContent, LOCK_EX) === false) {
             return 'Failed to write content file.';
         }
 
@@ -1501,7 +1495,8 @@ JS;
                         if ($result['success']) {
                             $successCount++;
                             $uploadedFiles[] = $result;
-                            $this->logAction('INFO', "Uploaded media: {$result['filename']} to {$result['relative_path']}");
+                            $relativePath = $result['path'] ?? $result['filename'] ?? 'unknown';
+                            $this->logAction('INFO', "Uploaded media: {$result['filename']} to {$relativePath}");
                         } else {
                             $errors[] = "{$files['name'][$i]}: {$result['error']}";
                             $this->logAction('WARNING', "Media upload failed: {$files['name'][$i]} - {$result['error']}");
@@ -2588,7 +2583,7 @@ JS;
         $logFile = $this->app->path('storage/logs/error.log');
         
         if (file_exists($logFile)) {
-            file_put_contents($logFile, '');
+            file_put_contents($logFile, '', LOCK_EX);
             $this->logAction('INFO', 'Error log cleared');
         }
 
@@ -2681,16 +2676,5 @@ HTML;
     private function adminUrl(): string
     {
         return $this->app->config('admin.path', '/admin');
-    }
-
-    private function formatBytes(int|float $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $i = 0;
-        while ($bytes >= 1024 && $i < count($units) - 1) {
-            $bytes /= 1024;
-            $i++;
-        }
-        return round($bytes, 2) . ' ' . $units[$i];
     }
 }

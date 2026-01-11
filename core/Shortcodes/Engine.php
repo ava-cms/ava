@@ -50,7 +50,7 @@ final class Engine
 
         return preg_replace_callback($pattern, function ($matches) {
             $tag = strtolower($matches[1]);
-            $attrString = $matches[2] ?? '';
+            $attrString = $matches[2];
             $innerContent = $matches[3] ?? null;
 
             if (!isset($this->shortcodes[$tag])) {

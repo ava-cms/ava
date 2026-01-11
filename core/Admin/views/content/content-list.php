@@ -45,7 +45,7 @@ $getContentPath = function($item) use ($routes, $typeConfig, $type) {
 };
 
 // Build full URL for content item (with preview support for drafts)
-$getContentUrl = function($item, $forcePreview = false) use ($routes, $site, $previewToken, $getContentPath) {
+$getContentUrl = function($item, $forcePreview = false) use ($site, $previewToken, $getContentPath) {
     $path = $getContentPath($item);
     if (!$path) {
         return null;

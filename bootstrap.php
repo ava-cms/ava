@@ -60,7 +60,7 @@ if ($logErrors) {
 
 // Custom error handler for enhanced logging (only if debugging or logging enabled)
 if ($debugEnabled || $logErrors) {
-    set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) use ($debugEnabled, $logErrors) {
+    set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) use ($logErrors) {
         // Skip errors suppressed with @
         if (!(error_reporting() & $errno)) {
             return false;

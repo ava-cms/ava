@@ -248,7 +248,7 @@ final class AdminRouter
     /**
      * Handle media upload request.
      */
-    private function handleMedia(Request $request): ?RouteMatch
+    private function handleMedia(Request $request): RouteMatch
     {
         $accessCheck = $this->checkAccess($request);
         if ($accessCheck !== null) {
@@ -256,10 +256,6 @@ final class AdminRouter
         }
 
         $response = $this->controller->media($request);
-
-        if ($response === null) {
-            return null;
-        }
 
         $response = $this->applyAdminSecurityHeaders($response);
 

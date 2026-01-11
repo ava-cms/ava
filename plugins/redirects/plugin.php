@@ -62,9 +62,9 @@ return [
             return is_array($data) ? $data : [];
         };
 
-        // Save redirects
+        // Save redirects with file locking for concurrent request safety
         $saveRedirects = function (array $redirects) use ($redirectsFile): void {
-            file_put_contents($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            file_put_contents($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         };
 
         // Register redirects with router via hook (runs early in routing)
