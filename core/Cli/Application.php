@@ -876,6 +876,12 @@ final class Application
      */
     private function cmdUpdateCheck(array $args): int
     {
+        // If --dev flag is present, redirect to apply (dev mode always applies)
+        $devMode = in_array('--dev', $args) || in_array('-d', $args);
+        if ($devMode) {
+            return $this->cmdUpdateApply($args);
+        }
+
         $force = in_array('--force', $args) || in_array('-f', $args);
 
         $this->writeln('');
@@ -955,12 +961,13 @@ final class Application
         $updater = new \Ava\Updater($this->app);
 
         if ($devMode) {
-            // Dev mode: update from latest commit
+            // Dev mode: force update from latest commit (bypass version check)
             echo $this->color('  ─── Dev Update ', self::PRIMARY, self::BOLD);
             echo $this->color(str_repeat('─', 42), self::PRIMARY, self::BOLD) . "\n";
             $this->writeln('');
-            $this->writeln('  ' . $this->color('⚠️  Updating from latest commit on main branch', self::YELLOW));
+            $this->writeln('  ' . $this->color('⚠️  Forcing update from latest commit on main branch', self::YELLOW));
             $this->writeln('  ' . $this->color('   This may include unstable or untested changes.', self::DIM));
+            $this->writeln('  ' . $this->color('   Version checks are bypassed in dev mode.', self::DIM));
             $this->writeln('');
             $this->keyValue('From', $updater->currentVersion());
             $this->keyValue('To', $this->color('main (latest commit)', self::YELLOW, self::BOLD));
