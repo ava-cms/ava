@@ -119,14 +119,17 @@ final class Repository
     // === Content Retrieval ===
 
     /**
-     * Get a content item by type and slug.
+     * Get a content item by type and content key.
+     * 
+     * For hierarchical types (like pages), the key is the path (e.g., 'about/team').
+     * For pattern types (like posts), the key is the slug (e.g., 'hello-world').
      * 
      * Uses the backend's optimized lookup, then parses the file directly
      * for full content. This avoids loading the full content index.
      */
-    public function get(string $type, string $slug): ?Item
+    public function get(string $type, string $key): ?Item
     {
-        $data = $this->backend()->getBySlug($type, $slug);
+        $data = $this->backend()->getBySlug($type, $key);
 
         if ($data === null) {
             return null;
@@ -145,14 +148,14 @@ final class Repository
     }
 
     /**
-     * Get a content item by type and slug with full index data.
+     * Get a content item by type and content key with full index data.
      * 
      * Returns the cached item data from the backend.
      * Use this when you need access to all indexed metadata without re-parsing.
      */
-    public function getFromIndex(string $type, string $slug): ?Item
+    public function getFromIndex(string $type, string $key): ?Item
     {
-        $data = $this->backend()->getBySlug($type, $slug);
+        $data = $this->backend()->getBySlug($type, $key);
 
         if ($data === null) {
             return null;

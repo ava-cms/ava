@@ -82,11 +82,11 @@ final class Indexer
         }
 
         // Build indexes
-        $contentIndex = $this->buildContentIndex($allItems);
-        $taxIndex = $this->buildTaxonomyIndex($allItems, $taxonomies);
+        $contentIndex = $this->buildContentIndex($allItems, $contentTypes);
+        $taxIndex = $this->buildTaxonomyIndex($allItems, $taxonomies, $contentTypes);
         $routes = $this->buildRoutes($allItems, $contentTypes, $taxonomies);
         $recentCache = $this->buildRecentCache($allItems);
-        $slugLookup = $this->buildSlugLookup($allItems);
+        $slugLookup = $this->buildSlugLookup($allItems, $contentTypes);
         $fingerprint = $this->computeFingerprint();
 
         // Determine which backend to build (use override if set, otherwise config)
@@ -257,7 +257,7 @@ final class Indexer
         }
 
         $items = [];
-        $slugs = []; // Track slugs for uniqueness
+        $keys = []; // Track content keys for uniqueness
 
         $files = $this->findMarkdownFiles($basePath);
 
@@ -271,12 +271,12 @@ final class Indexer
                     $errors[] = "{$filePath}: {$error}";
                 }
 
-                // Check slug uniqueness
-                $slug = $item->slug();
-                if (isset($slugs[$slug])) {
-                    $errors[] = "{$filePath}: Duplicate slug '{$slug}' (also in {$slugs[$slug]})";
+                // Check content key uniqueness (path-based for hierarchical, slug for pattern)
+                $key = $this->contentKey($item, $typeConfig);
+                if (isset($keys[$key])) {
+                    $errors[] = "{$filePath}: Duplicate content key '{$key}' (also in {$keys[$key]})";
                 } else {
-                    $slugs[$slug] = $filePath;
+                    $keys[$key] = $filePath;
                 }
 
                 // Check ID uniqueness (if IDs are used)
@@ -323,27 +323,32 @@ final class Indexer
     /**
      * Build the content index.
      */
-    private function buildContentIndex(array $allItems): array
+    private function buildContentIndex(array $allItems, array $contentTypes): array
     {
         $index = [
             'by_type' => [],
-            'by_slug' => [],
+            'by_key' => [],   // type:contentKey (path-based for hierarchical, slug for pattern)
             'by_id' => [],
             'by_path' => [],
         ];
 
         foreach ($allItems as $typeName => $items) {
+            $typeConfig = $contentTypes[$typeName] ?? [];
             $index['by_type'][$typeName] = [];
 
             foreach ($items as $item) {
                 $data = $item->toArray();
+                $contentKey = $this->contentKey($item, $typeConfig);
+                
+                // Store the content key in the data for retrieval
+                $data['content_key'] = $contentKey;
 
-                // Index by type
-                $index['by_type'][$typeName][$item->slug()] = $data;
+                // Index by type + content key
+                $index['by_type'][$typeName][$contentKey] = $data;
 
-                // Global slug index (type:slug)
-                $key = $typeName . ':' . $item->slug();
-                $index['by_slug'][$key] = $data;
+                // Global key index (type:contentKey)
+                $key = $typeName . ':' . $contentKey;
+                $index['by_key'][$key] = $data;
 
                 // Index by ID if present
                 if ($item->id()) {
@@ -445,31 +450,40 @@ final class Indexer
     }
 
     /**
-     * Build the slug lookup table.
+     * Build the content key lookup table.
      * 
-     * A lightweight index mapping type/slug to file path and minimal metadata.
+     * A lightweight index mapping type/contentKey to file path and minimal metadata.
      * Used for fast single-item lookups without loading the full content index.
      * 
+     * For hierarchical types, contentKey is the path (e.g., 'about/team').
+     * For pattern types, contentKey is the slug (e.g., 'hello-world').
+     * 
      * Structure: [
-     *     'post' => [
-     *         'hello-world' => ['file' => 'content/posts/hello-world.md', 'id' => '...', 'status' => 'published'],
+     *     'page' => [
+     *         'about/team' => ['file' => 'pages/about/team.md', 'id' => '...', 'status' => 'published'],
      *         ...
      *     ],
-     *     ...
+     *     'post' => [
+     *         'hello-world' => ['file' => 'posts/hello-world.md', 'id' => '...', 'status' => 'published'],
+     *         ...
+     *     ],
      * ]
      */
-    private function buildSlugLookup(array $allItems): array
+    private function buildSlugLookup(array $allItems, array $contentTypes): array
     {
         $lookup = [];
 
         foreach ($allItems as $typeName => $items) {
+            $typeConfig = $contentTypes[$typeName] ?? [];
             $lookup[$typeName] = [];
             
             foreach ($items as $item) {
-                $lookup[$typeName][$item->slug()] = [
+                $contentKey = $this->contentKey($item, $typeConfig);
+                $lookup[$typeName][$contentKey] = [
                     'file' => $this->getRelativePath($item->filePath()),
                     'id' => $item->id(),
                     'status' => $item->status(),
+                    'slug' => $item->slug(), // Keep slug for reference
                 ];
             }
         }
@@ -480,7 +494,7 @@ final class Indexer
     /**
      * Build the taxonomy index.
      */
-    private function buildTaxonomyIndex(array $allItems, array $taxonomies): array
+    private function buildTaxonomyIndex(array $allItems, array $taxonomies, array $contentTypes): array
     {
         $index = [];
 
@@ -493,10 +507,14 @@ final class Indexer
 
         // Collect terms from all content
         foreach ($allItems as $typeName => $items) {
+            $typeConfig = $contentTypes[$typeName] ?? [];
+            
             foreach ($items as $item) {
                 if (!$item->isPublished()) {
                     continue;
                 }
+
+                $contentKey = $this->contentKey($item, $typeConfig);
 
                 foreach ($taxonomies as $taxName => $taxConfig) {
                     $terms = $item->terms($taxName);
@@ -517,7 +535,7 @@ final class Indexer
                         }
 
                         $index[$taxName]['terms'][$termSlug]['count']++;
-                        $index[$taxName]['terms'][$termSlug]['items'][] = $typeName . ':' . $item->slug();
+                        $index[$taxName]['terms'][$termSlug]['items'][] = $typeName . ':' . $contentKey;
                     }
                 }
             }
@@ -658,12 +676,34 @@ final class Indexer
     }
 
     /**
-     * Generate hierarchical URL based on file path.
+     * Compute the content key for an item.
+     * 
+     * For hierarchical types, this is the path-based key (e.g., 'about/team').
+     * For pattern-based types, this is just the slug.
+     * 
+     * The content key is used for uniqueness checks and index lookups.
      */
-    private function generateHierarchicalUrl(Item $item, array $urlConfig): string
+    private function contentKey(Item $item, array $typeConfig): string
     {
-        $base = $urlConfig['base'] ?? '/';
-        $contentPath = $this->app->configPath('content');
+        $urlConfig = $typeConfig['url'] ?? [];
+        $urlType = $urlConfig['type'] ?? 'pattern';
+
+        if ($urlType !== 'hierarchical') {
+            return $item->slug();
+        }
+
+        // For hierarchical types, derive key from file path
+        return $this->pathKey($item);
+    }
+
+    /**
+     * Compute path-based key from an item's file path.
+     * 
+     * Strips the type folder prefix and .md extension.
+     * E.g., 'pages/about/team.md' -> 'about/team'
+     */
+    private function pathKey(Item $item): string
+    {
         $relativePath = $this->getRelativePath($item->filePath());
 
         // Remove type prefix (e.g., 'pages/')
@@ -682,7 +722,16 @@ final class Indexer
             }
         }
 
-        $path = implode('/', $pathParts);
+        return implode('/', $pathParts);
+    }
+
+    /**
+     * Generate hierarchical URL based on file path.
+     */
+    private function generateHierarchicalUrl(Item $item, array $urlConfig): string
+    {
+        $base = $urlConfig['base'] ?? '/';
+        $path = $this->pathKey($item);
 
         if ($base === '/') {
             // For root base, just prepend slash (empty path becomes just /)
