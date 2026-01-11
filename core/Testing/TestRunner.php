@@ -12,7 +12,7 @@ use Ava\Application;
  * A simple test runner for Ava CMS that requires no external dependencies.
  * Inspired by PHPUnit but minimal and self-contained.
  *
- * Tests are discovered automatically from the tests/ directory.
+ * Tests are discovered automatically from the core/tests/ directory.
  */
 final class TestRunner
 {

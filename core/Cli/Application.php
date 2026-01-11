@@ -1058,11 +1058,11 @@ final class Application
             }
         }
 
-        $testsPath = $this->app->path('tests');
+        $testsPath = $this->app->path('core/tests');
 
         if (!is_dir($testsPath)) {
             $this->error("Tests directory not found: {$testsPath}");
-            $this->tip('Create the tests/ directory and add test files ending in Test.php');
+            $this->tip('Create the core/tests/ directory and add test files ending in Test.php');
             return 1;
         }
 
