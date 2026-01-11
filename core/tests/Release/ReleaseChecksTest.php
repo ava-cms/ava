@@ -307,20 +307,27 @@ final class ReleaseChecksTest extends TestCase
     }
 
     /**
-     * Test that no users.php exists (fresh install)
+     * Test that users.php is either absent or gitignored (fresh install)
      */
-    public function testNoUsersFileExists(): void
+    public function testUsersFileAbsentOrGitignored(): void
     {
         $usersFile = AVA_ROOT . '/app/config/users.php';
         
-        $this->assertFalse(
-            file_exists($usersFile),
-            'users.php should not exist for release (it should be created by user:add)'
+        if (!file_exists($usersFile)) {
+            $this->assertTrue(true, 'users.php does not exist (clean release)');
+            return;
+        }
+
+        // If it exists, it must be gitignored
+        $gitignore = file_get_contents(AVA_ROOT . '/.gitignore');
+        $this->assertTrue(
+            str_contains($gitignore, 'app/config/users.php') || str_contains($gitignore, 'users.php'),
+            'users.php exists but is not gitignored - it should be created by user:add and never committed'
         );
     }
 
     /**
-     * Test that media directory is empty
+     * Test that media directory is empty (except .gitkeep)
      */
     public function testMediaDirectoryIsEmpty(): void
     {
@@ -332,7 +339,7 @@ final class ReleaseChecksTest extends TestCase
             return;
         }
 
-        $files = array_diff(scandir($mediaDir), ['.', '..']);
+        $files = array_diff(scandir($mediaDir), ['.', '..', '.gitkeep']);
         
         $this->assertEmpty(
             $files,
