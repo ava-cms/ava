@@ -12,7 +12,6 @@ declare(strict_types=1);
  * - Per-content-type sitemaps (/sitemap-posts.xml, /sitemap-pages.xml)
  * - Respects noindex frontmatter field
  * - Supports lastmod from updated/date fields
- * - Configurable changefreq and priority per content type
  *
  * @package Ava\Plugins\Sitemap
  */
@@ -35,14 +34,6 @@ return [
         // Default configuration (can be overridden in ava.php under 'sitemap')
         $config = array_merge([
             'enabled' => true,
-            'changefreq' => [
-                'page' => 'monthly',
-                'post' => 'weekly',
-            ],
-            'priority' => [
-                'page' => '0.8',
-                'post' => '0.6',
-            ],
         ], $app->config('sitemap', []));
 
         if (!$config['enabled']) {
@@ -105,9 +96,6 @@ return [
                 $routes = $repository->routes();
                 $items = $repository->published($type);
 
-                $changefreq = $config['changefreq'][$type] ?? 'weekly';
-                $priority = $config['priority'][$type] ?? '0.5';
-
                 $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
                 $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
@@ -142,8 +130,6 @@ return [
                         $xml .= "    <lastmod>" . $updated->format('Y-m-d') . "</lastmod>\n";
                     }
                     
-                    $xml .= "    <changefreq>{$changefreq}</changefreq>\n";
-                    $xml .= "    <priority>{$priority}</priority>\n";
                     $xml .= "  </url>\n";
                 }
 
