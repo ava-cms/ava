@@ -33,6 +33,8 @@ Ava is a modern flat‑file CMS for developers and content creators who want a s
 
 No proprietary formats. No hidden layers. Just files in, website out.
 
+![Ava CMS screenshots](https://ava.addy.zone/media/screenshots.png)
+
 ## Why Ava?
 
 - 📝 **Markdown & HTML** — Write fast in Markdown, drop into HTML when you want total control.
@@ -62,10 +64,6 @@ No proprietary formats. No hidden layers. Just files in, website out.
 3. **Render** — Your theme turns that content into HTML.
 
 You pick your workflow: edit on your server (SFTP/SSH), work locally and upload, use Git, or mix and match.
-
-## 📸 Screenshots
-
-![Ava CMS screenshots](https://ava.addy.zone/media/screenshots.png)
 
 ## 🏁 Quick Start
 
