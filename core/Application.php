@@ -242,7 +242,10 @@ final class Application
         }
     }
 
-    private function loadPlugins(): void
+    /**
+     * Load enabled plugins.
+     */
+    public function loadPlugins(): void
     {
         $plugins = $this->config('plugins', []);
         $pluginsPath = $this->configPath('plugins');

@@ -27,7 +27,7 @@ namespace Ava;
 final class Updater
 {
     private Application $app;
-    private string $githubRepo = 'ava-cms/ava';
+    private string $githubRepo = 'avacms/ava';
     private string $cacheFile;
 
     /** @var string[] Directories/files that should be updated */

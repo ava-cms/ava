@@ -887,9 +887,6 @@ final class Controller
                                                     $newFileParam = str_replace('/', '|', $newFile);
                                                     return Response::redirect($this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($newFileParam) . '&saved=1');
                                                 }
-                                                
-                                                // Clear POST so view reads fresh file from disk
-                                                unset($_POST['file_content'], $_POST['filename']);
                                             } else {
                                                 $error = $result;
                                             }

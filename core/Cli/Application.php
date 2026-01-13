@@ -7,6 +7,7 @@ namespace Ava\Cli;
 use Ava\Application as AvaApp;
 use Ava\Support\Ulid;
 use Ava\Support\Str;
+use Ava\Plugins\Hooks;
 
 /**
  * CLI Application
@@ -363,6 +364,9 @@ final class Application
      */
     private function cmdRebuild(array $args): int
     {
+        // Load plugins so they can hook into the rebuild process
+        $this->app->loadPlugins();
+
         $this->writeln('');
         $this->withSpinner('Rebuilding content index', function () {
             $this->app->indexer()->rebuild();
@@ -373,6 +377,8 @@ final class Application
         if (function_exists('opcache_reset')) {
             @opcache_reset();
         }
+
+        Hooks::doAction('cli.rebuild', $this->app);
 
         $this->success('Content index rebuilt!');
         $this->writeln('');
