@@ -21,37 +21,47 @@
 [![License](https://img.shields.io/github/license/AvaCMS/ava)](https://github.com/AvaCMS/ava/blob/main/LICENSE)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/fZwW4jBVh5)
 
-**Links:** [Docs](https://ava.addy.zone/) · [Releases](https://github.com/AvaCMS/ava/releases) · [Issues](https://github.com/AvaCMS/ava/issues) · [Discord](https://discord.gg/fZwW4jBVh5)
+**Start here:** [Docs](https://ava.addy.zone/docs) · [Themes](https://ava.addy.zone/themes) · [Plugins](https://ava.addy.zone/plugins) · [Showcase](https://ava.addy.zone/showcase)
 
-**Explore:** [Themes](https://ava.addy.zone/themes) · [Plugins](https://ava.addy.zone/plugins) · [Showcase](https://ava.addy.zone/showcase)
+Build content in Markdown/HTML. Render with plain PHP. **No database required.**
 
-Build content in Markdown. Render with plain PHP. No database required.
+Ava is a modern flat‑file CMS for developers and content creators who want a site they can understand, move between hosts, and keep for the long haul. Your source of truth is a folder on disk:
 
-Ava is a modern flat‑file CMS for developers and content creators who want simplicity without giving up control. Your content lives as **Markdown files** on disk, your theme is **PHP + HTML**, and your configuration is a small set of PHP arrays.
+- content in `content/`
+- templates in `themes/`
+- configuration in `app/config/`
 
-## Why Ava
+No proprietary formats. No hidden layers. Just files in, website out.
 
-- **Markdown & HTML**: Write fast in Markdown, drop into HTML when you want full control.
-- **Instant feedback**: No manual build step or deploy queue — edit a file, refresh, see it live.
-- **Design freedom**: Standard HTML/CSS templates, with PHP only where you need dynamic data.
-- **Model anything**: Content types + taxonomies make blogs, portfolios, docs, and catalogs feel natural.
-- **Dev-friendly**: CLI, hooks, and plugins keep advanced features clean and optional.
-- **Scale when you need**: Start with flat files, switch backends (like SQLite) for huge sites.
+## Why Ava?
 
-## ✨ Highlights
+- 📝 **Markdown & HTML** — Write fast in Markdown, drop into HTML when you want total control.
+- ⚡ **Instant feedback** — No manual build step or deploy queue. Edit a file, refresh, done.
+- 🎨 **Design freedom** — Standard HTML/CSS templates, with Ava's helpers and PHP only where you need dynamic data.
+- 🧩 **Model anything** — Define portfolios, events, docs, catalogs, blogs—whatever fits—via content types, fields and taxonomies.
+- 🚀 **Dynamic features** — Search, sorting, and filtering work out of the box, backed by caching.
+- 🛠️ **Dev-friendly** — CLI, plugins, and hooks keep power features clean and optional.
+- 📈 **Scale seamlessly** — Start with flat files; switch to a powerful backend like SQLite if your site gets massive with 1 line of config.
+- 🤖 **LLM-friendly** — The predictable structure + solid docs + straightforward CLI make it great to pair with AI assistants when building themes and extensions.
 
-- **Markdown + front matter** content on disk
-- **Content types & taxonomies** for structured sites
-- **Built-in CLI** for common tasks (including cache management)
-- **Bundled plugins** like sitemap, redirects, and feeds
-- **Pragmatic defaults** with plenty of escape hatches
-- **No database by default**, with optional backends for scale (including SQLite)
+## What’s included
 
-### How it works
+- **Content types** and **taxonomies** for modeling your site your way
+- **Smart routing** based on your content structure
+- **Shortcodes** and **snippets** for reusable dynamic bits inside Markdown
+- **Search** across your content with configurable weights
+- **Plugins + hooks** (plus bundled plugins like sitemap, redirects, and feeds)
+- **CLI tool** for everyday tasks (cache, users, diagnostics, and more)
+- **Optional admin dashboard** for quick edits and site monitoring
+- **Caching** (including optional full page caching for static-speed delivery)
+
+## How it works
 
 1. **Write** — Create Markdown files in `content/`.
 2. **Index** — Ava automatically scans your files and builds a fast index.
-3. **Render** — Your theme turns content into HTML.
+3. **Render** — Your theme turns that content into HTML.
+
+You pick your workflow: edit on your server (SFTP/SSH), work locally and upload, use Git, or mix and match.
 
 ## 📸 Screenshots
 
@@ -70,8 +80,8 @@ That’s it — Ava is designed to run happily on shared hosting, a VPS, or loca
 
 **Option A: Download a release**
 
-- Grab the latest release from https://github.com/AvaCMS/ava/releases
-- Unzip it into a new folder
+- Download the latest release: https://github.com/AvaCMS/ava/releases
+- Extract it into a folder on your machine or server
 
 **Option B: Clone from GitHub**
 
@@ -81,13 +91,19 @@ cd my-site
 composer install
 ```
 
-If you downloaded a release zip, just run:
+If you downloaded a release zip, run this from the extracted folder:
 
 ```bash
 composer install
 ```
 
-### 2) Run locally
+### 2) Configure
+
+Edit your site settings in:
+
+- `app/config/ava.php`
+
+### 3) Run locally
 
 Start the built-in PHP development server:
 
@@ -99,7 +115,7 @@ php -S localhost:8000 -t public
 
 Visit `http://localhost:8000`.
 
-### 3) Create content
+### 4) Create content
 
 Add a new page by creating a Markdown file in `content/pages/`.
 
@@ -128,16 +144,18 @@ Documentation lives at **https://ava.addy.zone/**.
 - [Theming](https://ava.addy.zone/docs/theming)
 - [CLI](https://ava.addy.zone/docs/cli)
 - [Plugin Development](https://ava.addy.zone/docs/creating-plugins)
+- [Showcase](https://ava.addy.zone/showcase)
 
-## 🔌 Plugins
+## 🔌 Plugins & Themes
 
-Ava includes a simple hook-based plugin system. A few plugins are bundled in this repo (like sitemap, redirects, and a feed plugin) so you can see the pattern and ship common features quickly.
+Ava includes a simple hook-based plugin system, and theming is just PHP templates. A few plugins are bundled in this repo (like sitemap, redirects, and a feed plugin) so you can see the pattern and ship common features quickly.
 
-Browse community plugins at https://ava.addy.zone/plugins
+- Community plugins: https://ava.addy.zone/plugins
+- Community themes: https://ava.addy.zone/themes
 
-## 🏗️ Project Structure
+## 🗂️ Your Site, On Disk
 
-Here is what an Ava project looks like:
+Here’s the shape of a typical Ava site:
 
 ```text
 my-site/
@@ -166,7 +184,7 @@ See https://ava.addy.zone/docs/performance
 
 ## 🤝 Contributing & Community
 
-Feedback is the most helpful thing right now.
+Feedback is the most helpful thing right now (especially as we head towards 1.0).
 
 - Bugs, questions, and ideas: https://github.com/AvaCMS/ava/issues
 - Chat & support: https://discord.gg/fZwW4jBVh5
