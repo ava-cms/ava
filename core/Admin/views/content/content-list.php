@@ -147,7 +147,7 @@ $formatBytes = function($bytes) {
                         </td>
                         <td>
                             <div class="btn-group">
-                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= urlencode($editFile) ?>" class="btn btn-xs btn-secondary" title="Edit">
+                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= htmlspecialchars($editFile) ?>" class="btn btn-xs btn-secondary" title="Edit">
                                     <span class="material-symbols-rounded">edit</span>
                                 </a>
                                 <?php if ($itemUrl): ?>

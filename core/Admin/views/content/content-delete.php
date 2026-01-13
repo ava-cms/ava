@@ -39,7 +39,7 @@ $hasError = isset($_GET['error']);
                 </div>
             </div>
 
-            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/delete?file=<?= urlencode($fileParam) ?>">
+            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/delete?file=<?= htmlspecialchars($fileParam) ?>">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
 
                 <div class="delete-preview">
