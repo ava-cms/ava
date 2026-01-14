@@ -958,26 +958,34 @@ final class Application
      *   --dev    Update from the latest commit on main branch instead of a release
      *   --yes    Skip confirmation prompts
      *   -y       Same as --yes
-     *   --force  Proceed even if custom paths are detected
      */
     private function cmdUpdateApply(array $args): int
     {
         $this->writeln('');
 
         $devMode = in_array('--dev', $args) || in_array('-d', $args);
-        $forceMode = in_array('--force', $args);
         $updater = new \Ava\Updater($this->app);
 
-        // Check for custom paths that may conflict with updater
+        // Check for custom paths - auto-update is blocked entirely
         $pathCheck = $updater->checkPathSafety();
-        if (!$pathCheck['safe'] && !$forceMode) {
-            $this->box('Custom paths detected', 'warning');
+        if (!$pathCheck['safe']) {
+            $this->box('Auto-update disabled', 'error');
             $this->writeln('');
-            foreach ($pathCheck['warnings'] as $warning) {
-                $this->writeln('  ' . $this->color('⚠', self::YELLOW) . ' ' . $warning);
+            $this->writeln('  Your site uses custom paths that differ from Ava defaults:');
+            $this->writeln('');
+            foreach ($pathCheck['custom_paths'] as $key => $info) {
+                $this->writeln('    ' . $this->color($key, self::BOLD) . ': ' . $this->color($info['configured'], self::YELLOW));
+                $this->writeln('    ' . $this->color('Expected:', self::DIM) . ' ' . $info['default']);
+                $this->writeln('');
             }
+            $this->writeln('  The auto-updater cannot safely update sites with custom paths');
+            $this->writeln('  because files would be written to the wrong locations.');
             $this->writeln('');
-            $this->tip('Use --force to proceed anyway');
+            $this->writeln($this->color('  To update manually:', self::BOLD));
+            $this->writeln('    1. Download the latest release from https://github.com/avacms/ava/releases');
+            $this->writeln('    2. Extract and copy core/, docs/, bootstrap.php, composer.json');
+            $this->writeln('    3. Copy bundled plugins to your custom plugins path');
+            $this->writeln('    4. Run ./ava rebuild');
             $this->writeln('');
             return 1;
         }
@@ -1055,21 +1063,13 @@ final class Application
             $this->writeln('');
         }
 
-        $result = $this->withSpinner('Downloading update', function () use ($updater, $devMode, $forceMode) {
-            return $updater->apply(null, $devMode, $forceMode);
+        $result = $this->withSpinner('Downloading update', function () use ($updater, $devMode) {
+            return $updater->apply(null, $devMode);
         });
 
         if (!$result['success']) {
             $this->error($result['message']);
             return 1;
-        }
-
-        // Show warnings if any (e.g., custom paths)
-        if (!empty($result['warnings'])) {
-            foreach ($result['warnings'] as $warning) {
-                $this->writeln('  ' . $this->color('⚠', self::YELLOW) . ' ' . $warning);
-            }
-            $this->writeln('');
         }
 
         $this->success($result['message']);

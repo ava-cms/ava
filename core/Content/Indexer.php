@@ -100,6 +100,18 @@ final class Indexer
         $this->writeBinaryCacheFile('slug_lookup.bin', $slugLookup);
         $this->writeJsonCacheFile('fingerprint.json', $fingerprint);
 
+        // Pre-render HTML if enabled (trades rebuild time for faster page loads)
+        if ($this->app->config('content_index.prerender_html', false)) {
+            $htmlCache = $this->buildHtmlCache($allItems);
+            $this->writeBinaryCacheFile('html_cache.bin', $htmlCache);
+        } else {
+            // Clean up old HTML cache if it exists
+            $htmlCachePath = $this->getCachePath('html_cache.bin');
+            if (file_exists($htmlCachePath)) {
+                @unlink($htmlCachePath);
+            }
+        }
+
         // Write only the configured backend
         if ($backendConfig === 'sqlite') {
             if (!extension_loaded('pdo_sqlite')) {
@@ -450,6 +462,93 @@ final class Indexer
             ];
         }
 
+        return $cache;
+    }
+
+    /**
+     * Build pre-rendered HTML cache.
+     * 
+     * Renders all content markdown during rebuild to eliminate the ~20ms
+     * CommonMark initialization cost on first page load.
+     * 
+     * Structure: [
+     *     'type:slug' => '<p>Rendered HTML...</p>',
+     *     ...
+     * ]
+     */
+    private function buildHtmlCache(array $allItems): array
+    {
+        $cache = [];
+        $contentTypes = $this->loadContentTypes();
+        
+        // Create a minimal markdown renderer for pre-rendering
+        // We need to be careful not to load the full rendering engine
+        $markdownConfig = $this->app->config('content.markdown', []);
+        $enableHeadingIds = $markdownConfig['heading_ids'] ?? true;
+        
+        $config = [
+            'html_input' => ($markdownConfig['allow_html'] ?? true) ? 'allow' : 'strip',
+            'allow_unsafe_links' => false,
+            'disallowed_raw_html' => [
+                'disallowed_tags' => $markdownConfig['disallowed_tags'] ?? [],
+            ],
+        ];
+        
+        if ($enableHeadingIds) {
+            $config['heading_permalink'] = [
+                'apply_id_to_heading' => true,
+                'insert' => 'none',
+                'min_heading_level' => 1,
+                'max_heading_level' => 6,
+            ];
+        }
+        
+        $environment = new \League\CommonMark\Environment\Environment($config);
+        $environment->addExtension(new \League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension());
+        $environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
+        if ($enableHeadingIds) {
+            $environment->addExtension(new \League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension());
+        }
+        
+        // Allow plugins to configure markdown (same hook as rendering engine)
+        Hooks::doAction('markdown.configure', $environment);
+        
+        $converter = new \League\CommonMark\MarkdownConverter($environment);
+        
+        // Path aliases for expansion
+        $aliases = $this->app->config('paths.aliases', []);
+        
+        foreach ($allItems as $typeName => $items) {
+            $typeConfig = $contentTypes[$typeName] ?? [];
+            
+            foreach ($items as $item) {
+                // Only pre-render published content
+                if (!$item->isPublished()) {
+                    continue;
+                }
+                
+                $contentKey = $this->contentKey($item, $typeConfig);
+                $key = $typeName . ':' . $contentKey;
+                
+                try {
+                    $html = $converter->convert($item->rawContent())->getContent();
+                    
+                    // Expand path aliases
+                    foreach ($aliases as $alias => $path) {
+                        $html = str_replace($alias, $path, $html);
+                    }
+                    
+                    // Note: Shortcodes are NOT processed here because they may depend
+                    // on request context. They're processed at render time.
+                    
+                    $cache[$key] = $html;
+                } catch (\Throwable $e) {
+                    // Log error but don't fail the rebuild
+                    error_log("HTML pre-render failed for {$key}: " . $e->getMessage());
+                }
+            }
+        }
+        
         return $cache;
     }
 

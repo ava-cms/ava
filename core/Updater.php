@@ -88,27 +88,29 @@ final class Updater
     /**
      * Check if any configured paths differ from defaults.
      *
-     * The updater uses hardcoded paths for bundled plugins and core files.
-     * If users have customized paths in their config, the auto-updater may
-     * not work as expected (e.g., bundled plugin updates go to wrong location).
+     * The updater syncs bundled plugins to app/plugins/. If users have
+     * customized paths, the auto-updater cannot safely proceed because
+     * files would be written to the wrong locations.
      *
-     * @return array{safe: bool, warnings: string[]}
+     * @return array{safe: bool, custom_paths: array<string, array{configured: string, default: string}>}
      */
     public function checkPathSafety(): array
     {
-        $warnings = [];
+        $customPaths = [];
 
         foreach ($this->defaultPaths as $key => $default) {
             $configured = $this->app->config("paths.{$key}", $default);
             if ($configured !== $default) {
-                $warnings[] = "Custom '{$key}' path detected: '{$configured}' (default: '{$default}'). "
-                    . "Bundled plugin updates will still go to '{$default}/'.";
+                $customPaths[$key] = [
+                    'configured' => $configured,
+                    'default' => $default,
+                ];
             }
         }
 
         return [
-            'safe' => empty($warnings),
-            'warnings' => $warnings,
+            'safe' => empty($customPaths),
+            'custom_paths' => $customPaths,
         ];
     }
 
@@ -187,28 +189,22 @@ final class Updater
      *
      * @param string|null $version Specific version to update to (null = latest)
      * @param bool $dev If true, update from the latest commit on main branch instead of a release
-     * @param bool $force If true, proceed even if path safety checks fail
-     * @return array{success: bool, message: string, updated_from: string, updated_to: string, new_plugins: string[], warnings: string[]}
+     * @return array{success: bool, message: string, updated_from: string, updated_to: string, new_plugins: string[]}
      */
-    public function apply(?string $version = null, bool $dev = false, bool $force = false): array
+    public function apply(?string $version = null, bool $dev = false): array
     {
         $currentVersion = $this->currentVersion();
-        $warnings = [];
 
-        // Check path safety before proceeding
+        // Check path safety before proceeding - block entirely if custom paths
         $pathCheck = $this->checkPathSafety();
         if (!$pathCheck['safe']) {
-            $warnings = $pathCheck['warnings'];
-            if (!$force) {
-                return [
-                    'success' => false,
-                    'message' => 'Custom paths detected. Use --force to update anyway. ' . implode(' ', $warnings),
-                    'updated_from' => $currentVersion,
-                    'updated_to' => $currentVersion,
-                    'new_plugins' => [],
-                    'warnings' => $warnings,
-                ];
-            }
+            return [
+                'success' => false,
+                'message' => 'Auto-update blocked due to custom paths. Please update manually from GitHub.',
+                'updated_from' => $currentVersion,
+                'updated_to' => $currentVersion,
+                'new_plugins' => [],
+            ];
         }
 
         try {
@@ -222,7 +218,6 @@ final class Updater
                         'updated_from' => $currentVersion,
                         'updated_to' => $currentVersion,
                         'new_plugins' => [],
-                        'warnings' => $warnings,
                     ];
                 }
                 $shortSha = substr($commit['sha'], 0, 7);
@@ -243,7 +238,6 @@ final class Updater
                         'updated_from' => $currentVersion,
                         'updated_to' => $currentVersion,
                         'new_plugins' => [],
-                        'warnings' => $warnings,
                     ];
                 }
 
@@ -258,7 +252,6 @@ final class Updater
                     'updated_from' => $currentVersion,
                     'updated_to' => $currentVersion,
                     'new_plugins' => [],
-                    'warnings' => $warnings,
                 ];
             }
 
@@ -306,7 +299,6 @@ final class Updater
                 'updated_from' => $currentVersion,
                 'updated_to' => $newVersion,
                 'new_plugins' => $newPlugins,
-                'warnings' => $warnings,
             ];
 
         } catch (\Exception $e) {
@@ -316,7 +308,6 @@ final class Updater
                 'updated_from' => $currentVersion,
                 'updated_to' => $currentVersion,
                 'new_plugins' => [],
-                'warnings' => $warnings,
             ];
         }
     }

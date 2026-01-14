@@ -89,6 +89,33 @@ final class WebpageCache
             return null;
         }
 
+        return $this->getFromFile($request);
+    }
+
+    /**
+     * Fast path: Get cached response without full cacheability check.
+     * 
+     * Used by Application::tryCachedResponse() to serve cached pages
+     * before full boot. Assumes basic checks already passed.
+     */
+    public function getWithoutFullCheck(Request $request): ?Response
+    {
+        // Quick exclusion pattern check
+        $path = $request->path();
+        foreach ($this->exclude as $pattern) {
+            if ($this->matchesPattern($path, $pattern)) {
+                return null;
+            }
+        }
+
+        return $this->getFromFile($request);
+    }
+
+    /**
+     * Get cached response from file.
+     */
+    private function getFromFile(Request $request): ?Response
+    {
         $cacheFile = $this->getCacheFilePath($request);
 
         if (!file_exists($cacheFile)) {

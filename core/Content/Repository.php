@@ -453,6 +453,69 @@ final class Repository
         return $this->backend()->canUseFastCache($type, $page, $perPage);
     }
 
+    // === Pre-rendered HTML Cache ===
+
+    /** @var array<string, string>|null */
+    private ?array $htmlCache = null;
+
+    /**
+     * Get pre-rendered HTML for a content item.
+     * 
+     * Returns null if pre-rendering is disabled or the item isn't cached.
+     * 
+     * @param string $type Content type
+     * @param string $key Content key (slug or path)
+     * @return string|null Pre-rendered HTML or null
+     */
+    public function getPrerenderedHtml(string $type, string $key): ?string
+    {
+        if ($this->htmlCache === null) {
+            $this->htmlCache = $this->loadHtmlCache();
+        }
+        
+        $cacheKey = $type . ':' . $key;
+        return $this->htmlCache[$cacheKey] ?? null;
+    }
+
+    /**
+     * Load the HTML cache from disk.
+     */
+    private function loadHtmlCache(): array
+    {
+        $cachePath = $this->app->configPath('storage') . '/cache/html_cache.bin';
+        
+        if (!file_exists($cachePath)) {
+            return [];
+        }
+        
+        $content = file_get_contents($cachePath);
+        if ($content === false || strlen($content) < 4) {
+            return [];
+        }
+        
+        // Check format prefix
+        $prefix = substr($content, 0, 3);
+        $data = substr($content, 3);
+        
+        if ($prefix === 'IG:' && function_exists('igbinary_unserialize')) {
+            return igbinary_unserialize($data) ?: [];
+        }
+        
+        if ($prefix === 'SZ:') {
+            return unserialize($data) ?: [];
+        }
+        
+        // Legacy format (no prefix) - try igbinary first, then serialize
+        if (function_exists('igbinary_unserialize')) {
+            $result = @igbinary_unserialize($content);
+            if ($result !== false) {
+                return $result;
+            }
+        }
+        
+        return @unserialize($content) ?: [];
+    }
+
     // === Cache Management ===
 
     /**
@@ -461,5 +524,6 @@ final class Repository
     public function clearCache(): void
     {
         $this->backend()->clearMemoryCache();
+        $this->htmlCache = null;
     }
 }

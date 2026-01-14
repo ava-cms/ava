@@ -73,14 +73,26 @@ final class Engine
     /**
      * Render a content item (process its Markdown body).
      * 
-     * Returns the rendered HTML. The Item's html() is checked for cached content.
-     * Use withHtml() on the item if you need to cache the result.
+     * Returns the rendered HTML. Uses pre-rendered cache if available,
+     * otherwise renders markdown on demand.
+     * 
+     * @param Item $item Content item to render
+     * @param string|null $contentKey Optional content key for pre-render cache lookup
      */
-    public function renderItem(Item $item): string
+    public function renderItem(Item $item, ?string $contentKey = null): string
     {
-        // Check if already rendered
+        // Check if already rendered (in-memory)
         if ($item->html() !== null) {
             return $item->html();
+        }
+
+        // Try pre-rendered HTML cache (if enabled during rebuild)
+        if ($contentKey !== null) {
+            $prerendered = $this->app->repository()->getPrerenderedHtml($item->type(), $contentKey);
+            if ($prerendered !== null) {
+                // Still need to process shortcodes (they weren't processed during pre-render)
+                return $this->app->shortcodes()->process($prerendered);
+            }
         }
 
         return $this->renderMarkdown($item->rawContent());

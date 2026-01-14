@@ -98,12 +98,17 @@ return [
     | backend:
     |   • array  — Binary PHP arrays, works everywhere (default)
     |   • sqlite — SQLite database, use for 10k+ items or memory limits
+    |
+    | prerender_html:
+    |   Pre-render markdown to HTML during rebuild. Eliminates ~20ms markdown
+    |   parsing on first page view. Trade-off: larger cache, slower rebuild after content updates.
     */
 
     'content_index' => [
-        'mode'         => 'auto',
-        'backend'      => 'array',
-        'use_igbinary' => true,             // ~5x faster serialization if installed
+        'mode'           => 'auto',
+        'backend'        => 'array',
+        'use_igbinary'   => true,           // ~5x faster serialization if installed
+        'prerender_html' => true,           // Pre-render markdown during rebuild
     ],
 
     /*

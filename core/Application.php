@@ -33,6 +33,49 @@ final class Application
     }
 
     /**
+     * Try to serve a cached page without full boot.
+     * 
+     * This is the fast path - if we have a cached page, serve it immediately
+     * without loading plugins, themes, or checking content freshness.
+     * 
+     * @return Response|null Cached response if available, null to continue with full boot
+     */
+    public function tryCachedResponse(Request $request): ?Response
+    {
+        // Only attempt if webpage cache is enabled
+        if (!$this->config('webpage_cache.enabled', false)) {
+            return null;
+        }
+
+        // Quick checks that don't require full boot
+        if ($request->method() !== 'GET') {
+            return null;
+        }
+
+        // Don't serve cache for admin paths
+        $adminPath = $this->config('admin.path', '/admin');
+        if (str_starts_with($request->path(), $adminPath)) {
+            return null;
+        }
+
+        // Check for query parameters (skip UTM params)
+        $query = $request->query();
+        unset($query['utm_source'], $query['utm_medium'], $query['utm_campaign'], $query['utm_term'], $query['utm_content']);
+        if (!empty($query)) {
+            return null;
+        }
+
+        // Check for admin session cookie (don't serve cache to logged-in users)
+        if (isset($_COOKIE['ava_admin'])) {
+            return null;
+        }
+
+        // Try to get from cache
+        $webpageCache = $this->webpageCache();
+        return $webpageCache->getWithoutFullCheck($request);
+    }
+
+    /**
      * Boot the application.
      */
     public function boot(): void
