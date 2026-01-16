@@ -76,6 +76,10 @@ final class Engine
      * Returns the rendered HTML. Uses pre-rendered cache if available,
      * otherwise renders markdown on demand.
      * 
+     * If the item has `raw_html: true` in frontmatter, Markdown parsing
+     * is skipped and the body is treated as raw HTML. Shortcodes and
+     * path aliases are still processed.
+     * 
      * @param Item $item Content item to render
      * @param string|null $contentKey Optional content key for pre-render cache lookup
      */
@@ -84,6 +88,13 @@ final class Engine
         // Check if already rendered (in-memory)
         if ($item->html() !== null) {
             return $item->html();
+        }
+
+        // If raw_html is enabled, skip Markdown parsing but still process
+        // shortcodes and expand path aliases
+        if ($item->rawHtml()) {
+            $html = $this->app->shortcodes()->process($item->rawContent());
+            return $this->expandAliases($html);
         }
 
         // Try pre-rendered HTML cache (if enabled during rebuild)

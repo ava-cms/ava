@@ -537,6 +537,11 @@ final class Indexer
                 if (!$item->isPublished()) {
                     continue;
                 }
+
+                // Skip items with raw_html: true - they don't need Markdown rendering
+                if ($item->rawHtml()) {
+                    continue;
+                }
                 
                 $contentKey = $this->contentKey($item, $typeConfig);
                 $key = $typeName . ':' . $contentKey;

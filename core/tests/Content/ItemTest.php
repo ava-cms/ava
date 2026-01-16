@@ -310,6 +310,39 @@ final class ItemTest extends TestCase
     }
 
     // =========================================================================
+    // Raw HTML mode
+    // =========================================================================
+
+    public function testRawHtmlReturnsFalseByDefault(): void
+    {
+        $item = $this->createItem([]);
+        $this->assertFalse($item->rawHtml());
+    }
+
+    public function testRawHtmlReturnsTrueWhenSet(): void
+    {
+        $item = $this->createItem(['raw_html' => true]);
+        $this->assertTrue($item->rawHtml());
+    }
+
+    public function testRawHtmlReturnsFalseWhenExplicitlyFalse(): void
+    {
+        $item = $this->createItem(['raw_html' => false]);
+        $this->assertFalse($item->rawHtml());
+    }
+
+    public function testRawHtmlHandlesTruthyValues(): void
+    {
+        // Truthy string should cast to true
+        $item = $this->createItem(['raw_html' => 'yes']);
+        $this->assertTrue($item->rawHtml());
+
+        // Integer 1 should cast to true
+        $item = $this->createItem(['raw_html' => 1]);
+        $this->assertTrue($item->rawHtml());
+    }
+
+    // =========================================================================
     // Helper
     // =========================================================================
 

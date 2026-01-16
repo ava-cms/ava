@@ -134,6 +134,22 @@ final class Item
     }
 
     /**
+     * Whether this item should skip Markdown parsing and render raw HTML.
+     * 
+     * When true, the body content is treated as HTML and passed through
+     * without Markdown processing. Shortcodes and path aliases are still
+     * processed.
+     * 
+     * Security note: This is safe for file-based content since content
+     * authors have filesystem access anyway. The admin editor blocks
+     * high-risk HTML regardless of this setting.
+     */
+    public function rawHtml(): bool
+    {
+        return (bool) ($this->frontmatter['raw_html'] ?? false);
+    }
+
+    /**
      * Get the HTML content.
      */
     public function html(): ?string
