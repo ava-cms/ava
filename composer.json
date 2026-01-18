@@ -2,7 +2,7 @@
     "name": "avacms/ava",
     "description": "Addy's Very Adaptable CMS - A flat-file PHP CMS",
     "type": "project",
-    "license": "MIT",
+    "license": "GPL-3.0-or-later",
     "bin": ["ava"],
     "require": {
         "php": "^8.3",
