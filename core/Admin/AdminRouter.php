@@ -58,6 +58,29 @@ final class AdminRouter
         // Allow plugins to register custom admin pages
         $this->customPages = Hooks::apply('admin.register_pages', [], $this->app);
 
+        // PWA manifest (public, but under admin path so custom paths aren't leaked)
+        $router->addRoute($basePath . '/manifest.json', function (Request $request) use ($basePath) {
+            return Response::json([
+                'name' => 'Ava CMS Admin',
+                'short_name' => 'Ava Admin',
+                'description' => 'Ava CMS Administration Panel',
+                'start_url' => $basePath,
+                'scope' => $basePath,
+                'display' => 'standalone',
+                'background_color' => '#0f172a',
+                'theme_color' => '#0f172a',
+                'orientation' => 'any',
+                'icons' => [
+                    [
+                        'src' => '/admin-assets/icon.png',
+                        'sizes' => '512x512',
+                        'type' => 'image/png',
+                        'purpose' => 'any maskable',
+                    ],
+                ],
+            ]);
+        });
+
         // Login (public)
         $router->addRoute($basePath . '/login', function (Request $request) {
             return $this->handle('login', $request, requireAuth: false);
