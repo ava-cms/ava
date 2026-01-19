@@ -72,7 +72,7 @@ final class AdminRouter
                 'orientation' => 'any',
                 'icons' => [
                     [
-                        'src' => '/admin-assets/icon.png',
+                        'src' => $basePath . '/assets/icon.png',
                         'sizes' => '512x512',
                         'type' => 'image/png',
                         'purpose' => 'any maskable',

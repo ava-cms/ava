@@ -29,16 +29,16 @@
  * - $adminTheme: Admin color theme (cyan, pink, purple, green, blue, amber)
  */
 
-// Generate admin CSS path with cache busting
-$adminCssPath = '/admin-assets/admin.css';
+// Generate admin CSS path with cache busting (uses $admin_url from controller)
+$adminCssPath = $admin_url . '/assets/admin.css';
 $adminCssFile = dirname(__DIR__) . '/admin.css';
 if (file_exists($adminCssFile)) {
     $adminCssPath .= '?v=' . filemtime($adminCssFile);
 }
 
 // CodeMirror assets (only loaded on editor pages when $useCodeMirror is true)
-$cmCssPath = '/admin-assets/codemirror/codemirror.css';
-$cmJsPath = '/admin-assets/codemirror/codemirror-init.js';
+$cmCssPath = $admin_url . '/assets/codemirror/codemirror.css';
+$cmJsPath = $admin_url . '/assets/codemirror/codemirror-init.js';
 $cmCssFile = dirname(__DIR__) . '/assets/codemirror/codemirror.css';
 if (file_exists($cmCssFile)) {
     $cmCssPath .= '?v=' . filemtime($cmCssFile);
@@ -57,7 +57,7 @@ if (file_exists($cmCssFile)) {
     <title><?= htmlspecialchars($pageTitle ?? 'Admin') ?> · Ava Admin</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
     <link rel="manifest" href="<?= htmlspecialchars($admin_url) ?>/manifest.json">
-    <link rel="apple-touch-icon" href="/admin-assets/icon.png">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($admin_url) ?>/assets/icon.png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     <link rel="stylesheet" href="<?= htmlspecialchars($adminCssPath) ?>">
     <?php if (!empty($useCodeMirror)): ?>
@@ -245,7 +245,7 @@ updateThemeIcon();
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/admin-assets/sw.js', { scope: '<?= htmlspecialchars($admin_url) ?>' })
+    navigator.serviceWorker.register('<?= htmlspecialchars($admin_url) ?>/assets/sw.js', { scope: '<?= htmlspecialchars($admin_url) ?>' })
         .catch(() => {});
 }
 </script>

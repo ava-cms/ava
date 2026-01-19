@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <?php
-// Generate admin CSS path with cache busting
-$adminCssPath = '/admin-assets/admin.css';
+// Generate admin CSS path with cache busting (uses $adminPath from controller)
+$adminCssPath = $adminPath . '/assets/admin.css';
 $adminCssFile = dirname(__DIR__) . '/admin.css';
 if (file_exists($adminCssFile)) {
     $adminCssPath .= '?v=' . filemtime($adminCssFile);
@@ -19,7 +19,7 @@ if (file_exists($adminCssFile)) {
     <title>Sign In · Ava CMS</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
     <link rel="manifest" href="<?= htmlspecialchars($adminPath) ?>/manifest.json">
-    <link rel="apple-touch-icon" href="/admin-assets/icon.png">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($adminPath) ?>/assets/icon.png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     <link rel="stylesheet" href="<?= htmlspecialchars($adminCssPath) ?>">
     <?php include __DIR__ . '/_theme.php'; ?>
@@ -76,7 +76,7 @@ if (file_exists($adminCssFile)) {
 </div>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/admin-assets/sw.js', { scope: '<?= htmlspecialchars($adminPath) ?>' })
+    navigator.serviceWorker.register('<?= htmlspecialchars($adminPath) ?>/assets/sw.js', { scope: '<?= htmlspecialchars($adminPath) ?>' })
         .catch(() => {});
 }
 </script>

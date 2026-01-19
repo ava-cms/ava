@@ -396,6 +396,9 @@ final class Application
      * - Core admin assets from core/Admin/assets/ (codemirror, etc.)
      * - Plugin assets from app/plugins/{name}/assets/
      * - Other public assets from public/assets/
+     * 
+     * Assets are served under {admin_path}/assets/ to avoid revealing
+     * the existence of an admin panel at a fixed URL.
      */
     private function registerAdminAssetsRoute(): void
     {
@@ -403,11 +406,14 @@ final class Application
         $coreAssetsPath = $this->path('core/Admin/assets');
         $publicPath = $this->path('public/assets');
         $pluginsPath = $this->configPath('plugins');
+        $adminPath = $this->config('admin.path', '/admin');
+        $assetsPrefix = $adminPath . '/assets/';
+        $prefixLength = strlen($assetsPrefix);
 
-        $this->router()->addPrefixRoute('/admin-assets/', function (Request $request) use ($corePath, $coreAssetsPath, $publicPath, $pluginsPath) {
+        $this->router()->addPrefixRoute($assetsPrefix, function (Request $request) use ($corePath, $coreAssetsPath, $publicPath, $pluginsPath, $prefixLength) {
             $path = $request->path();
-            // Remove /admin-assets/ prefix
-            $assetPath = substr($path, 14);
+            // Remove {admin_path}/assets/ prefix
+            $assetPath = substr($path, $prefixLength);
 
             // Serve core admin.css from core/Admin/
             if ($assetPath === 'admin.css') {
@@ -429,7 +435,7 @@ final class Application
                 }
             }
 
-            // Check if this is a plugin asset request: /admin-assets/plugin-name/...
+            // Check if this is a plugin asset request: {admin_path}/assets/plugin-name/...
             $parts = explode('/', $assetPath, 2);
             if (count($parts) === 2) {
                 $pluginName = $parts[0];
@@ -558,7 +564,7 @@ final class Application
     /**
      * Get the allowlist of permitted asset file extensions and their MIME types.
      * 
-     * Only these file types can be served via /theme/ and /admin-assets/ routes.
+     * Only these file types can be served via /theme/ and {admin_path}/assets/ routes.
      * This prevents serving PHP source code, config files, or other sensitive files.
      * 
      * @return array<string, string> Extension => MIME type mapping
