@@ -105,7 +105,7 @@ return [
     */
 
     'content_index' => [
-        'mode'           => 'auto',
+        'mode'           => 'never',
         'backend'        => 'array',
         'use_igbinary'   => true,           // ~5x faster serialization if installed
         'prerender_html' => true,           // Pre-render markdown during rebuild

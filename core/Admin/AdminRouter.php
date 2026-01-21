@@ -146,6 +146,11 @@ final class AdminRouter
             return $this->handleMediaApi($request);
         });
 
+        // Search API (protected) - returns JSON for quick search overlay
+        $router->addRoute($basePath . '/api/search', function (Request $request) {
+            return $this->handleSearchApi($request);
+        });
+
         // Content list (protected) - pattern: /admin/content/{type}
         $router->addRoute($basePath . '/content/{type}', function (Request $request, array $params) {
             return $this->handleContent($request, $params['type']);
@@ -305,6 +310,27 @@ final class AdminRouter
         }
 
         $response = $this->controller->mediaApi($request);
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle search API request - returns JSON for quick search overlay.
+     */
+    private function handleSearchApi(Request $request): RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->searchApi($request);
 
         $response = $this->applyAdminSecurityHeaders($response);
 

@@ -76,7 +76,7 @@ if (file_exists($adminCssFile)) {
 </div>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('<?= htmlspecialchars($adminPath) ?>/assets/sw.js', { scope: '<?= htmlspecialchars($adminPath) ?>' })
+    navigator.serviceWorker.register('<?= htmlspecialchars($adminPath) ?>/assets/sw.js')
         .catch(() => {});
 }
 </script>

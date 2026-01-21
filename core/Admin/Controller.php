@@ -2108,6 +2108,226 @@ JS;
         ]);
     }
 
+    /**
+     * Search API - returns JSON for quick search overlay.
+     *
+     * GET /admin/api/search?q=query
+     * Returns: { query: string, items: [...], count: int }
+     * 
+     * Searches content (all statuses including drafts) and admin pages.
+     * Prioritizes title matches for quick navigation.
+     */
+    public function searchApi(Request $request): Response
+    {
+        $searchQuery = trim($request->query('q', ''));
+        
+        // Return empty for short queries
+        if (strlen($searchQuery) < 2) {
+            return Response::json([
+                'query' => $searchQuery,
+                'items' => [],
+                'count' => 0
+            ]);
+        }
+        
+        $adminUrl = $this->adminUrl();
+        $items = [];
+        $searchLower = strtolower($searchQuery);
+        
+        // 1. Search admin pages first (static, high priority)
+        $adminPages = $this->getSearchableAdminPages();
+        foreach ($adminPages as $page) {
+            $titleLower = strtolower($page['title']);
+            $keywordsLower = strtolower($page['keywords'] ?? '');
+            
+            // Check title match (highest priority)
+            $titleMatch = str_contains($titleLower, $searchLower);
+            // Check keywords match  
+            $keywordsMatch = str_contains($keywordsLower, $searchLower);
+            
+            if ($titleMatch || $keywordsMatch) {
+                $score = 0;
+                // Exact title match or starts with
+                if ($titleLower === $searchLower) {
+                    $score = 1000;
+                } elseif (str_starts_with($titleLower, $searchLower)) {
+                    $score = 500;
+                } elseif ($titleMatch) {
+                    $score = 200;
+                } else {
+                    $score = 50; // Keywords match
+                }
+                
+                $items[] = [
+                    'title' => $page['title'],
+                    'url' => $adminUrl . $page['url'],
+                    'type' => 'Admin',
+                    'icon' => $page['icon'],
+                    'score' => $score,
+                ];
+            }
+        }
+        
+        // 2. Search content (all types, all statuses including drafts)
+        $contentTypes = $this->app->config('content_types', []);
+        
+        // Use search with high title weighting
+        $results = $this->app->query()
+            ->searchWeights([
+                'title_phrase' => 200,  // Strong title phrase boost
+                'title_all_tokens' => 100,
+                'title_token' => 30,
+                'excerpt_phrase' => 20,
+                'excerpt_token' => 5,
+                'body_phrase' => 10,
+                'body_token' => 2,
+            ])
+            ->search($searchQuery)
+            ->perPage(20)
+            ->get();
+        
+        foreach ($results as $item) {
+            $type = $item->type();
+            $typeConfig = $contentTypes[$type] ?? [];
+            $typeLabel = $typeConfig['label_singular'] ?? ucfirst($type);
+            $typeIcon = $typeConfig['icon'] ?? 'description';
+            
+            // Calculate score based on title matching
+            $titleLower = strtolower($item->title());
+            $score = 0;
+            if ($titleLower === $searchLower) {
+                $score = 800;
+            } elseif (str_starts_with($titleLower, $searchLower)) {
+                $score = 400;
+            } elseif (str_contains($titleLower, $searchLower)) {
+                $score = 150;
+            } else {
+                $score = 50; // Body/excerpt match
+            }
+            
+            // Build the edit URL
+            // Extract relative path within content type directory
+            $fullPath = $item->filePath();
+            $typeDir = $typeConfig['content_dir'] ?? $type . 's';
+            
+            // Find the type directory marker and extract path after it
+            $marker = '/' . $typeDir . '/';
+            $pos = strrpos($fullPath, $marker);
+            if ($pos !== false) {
+                $relPath = substr($fullPath, $pos + strlen($marker));
+            } else {
+                $relPath = basename($fullPath);
+            }
+            
+            // Remove .md extension and use pipe as separator
+            $fileParam = str_replace('/', '|', preg_replace('/\.md$/', '', $relPath));
+            $editUrl = $adminUrl . '/content/' . $type . '/edit?file=' . urlencode($fileParam);
+            
+            // Status badge
+            $status = $item->status();
+            $statusLabel = $status !== 'published' ? ' (' . ucfirst($status) . ')' : '';
+            
+            $items[] = [
+                'title' => $item->title() . $statusLabel,
+                'url' => $editUrl,
+                'type' => $typeLabel,
+                'icon' => $typeIcon,
+                'score' => $score,
+                'excerpt' => $item->excerpt() ?: substr(strip_tags($item->rawContent()), 0, 100),
+            ];
+        }
+        
+        // 3. Sort by score descending
+        usort($items, fn($a, $b) => $b['score'] <=> $a['score']);
+        
+        // 4. Limit results
+        $items = array_slice($items, 0, 15);
+        
+        // Remove score from output
+        $items = array_map(function($item) {
+            unset($item['score']);
+            return $item;
+        }, $items);
+        
+        // Check if index is stale
+        $indexStale = !$this->app->indexer()->isCacheFresh();
+        
+        return Response::json([
+            'query' => $searchQuery,
+            'items' => $items,
+            'count' => count($items),
+            'indexStale' => $indexStale,
+        ]);
+    }
+
+    /**
+     * Get searchable admin pages for the quick search.
+     */
+    private function getSearchableAdminPages(): array
+    {
+        $repository = $this->app->repository();
+        $contentTypes = $this->app->config('content_types', []);
+        $taxonomyConfig = require $this->app->path('app/config/taxonomies.php');
+        
+        $pages = [
+            // Core pages
+            ['title' => 'Dashboard', 'url' => '', 'icon' => 'dashboard', 'keywords' => 'home overview stats'],
+            ['title' => 'Media Library', 'url' => '/media', 'icon' => 'image', 'keywords' => 'images files uploads photos'],
+            ['title' => 'Lint Content', 'url' => '/lint', 'icon' => 'check_circle', 'keywords' => 'validate check errors warnings'],
+            ['title' => 'Admin Logs', 'url' => '/logs', 'icon' => 'history', 'keywords' => 'activity audit history'],
+            ['title' => 'Theme Settings', 'url' => '/theme', 'icon' => 'palette', 'keywords' => 'appearance colors style design'],
+            ['title' => 'System Info', 'url' => '/system', 'icon' => 'dns', 'keywords' => 'server php info status diagnostics'],
+        ];
+        
+        // Add content type pages
+        foreach ($contentTypes as $type => $config) {
+            $label = $config['label'] ?? ucfirst($type) . 's';
+            $labelSingular = $config['label_singular'] ?? ucfirst($type);
+            $icon = $config['icon'] ?? 'description';
+            
+            $pages[] = [
+                'title' => $label,
+                'url' => '/content/' . $type,
+                'icon' => $icon,
+                'keywords' => $type . ' list',
+            ];
+            
+            $pages[] = [
+                'title' => 'New ' . $labelSingular,
+                'url' => '/content/' . $type . '/create',
+                'icon' => 'add',
+                'keywords' => 'create add new ' . $type,
+            ];
+        }
+        
+        // Add taxonomy pages
+        foreach ($repository->taxonomies() as $taxonomy) {
+            $config = $taxonomyConfig[$taxonomy] ?? [];
+            $label = $config['label'] ?? ucfirst($taxonomy);
+            $icon = $config['icon'] ?? 'tag';
+            
+            $pages[] = [
+                'title' => $label,
+                'url' => '/taxonomy/' . $taxonomy,
+                'icon' => $icon,
+                'keywords' => $taxonomy . ' terms',
+            ];
+        }
+        
+        // Add custom plugin pages
+        $customPages = Hooks::apply('admin.register_pages', [], $this->app);
+        foreach ($customPages as $slug => $pageConfig) {
+            $pages[] = [
+                'title' => $pageConfig['label'] ?? ucfirst($slug),
+                'url' => '/' . $slug,
+                'icon' => $pageConfig['icon'] ?? 'extension',
+                'keywords' => $pageConfig['keywords'] ?? $slug,
+            ];
+        }
+        
+        return $pages;
+    }
+
     // -------------------------------------------------------------------------
     // Data gathering
     // -------------------------------------------------------------------------
