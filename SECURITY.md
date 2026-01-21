@@ -4,15 +4,7 @@ This document outlines how security issues should be reported and how Ava CMS ha
 
 ## Supported Versions
 
-Only the versions listed below are currently eligible for security-related fixes.
-
-| Version | Supported | Notes |
-|-------|-----------|-------|
-| v1.1.x | ✅ | Actively maintained |
-| v1.0.x | ❌ | No longer supported |
-| v25.x.x | ❌ | Early experimental CalVer releases prior to v1.0. Please [manually update](https://ava.addy.zone/docs/updating#content-manual-updates). |
-
-Security reports affecting unsupported versions may not be addressed.
+Ava CMS is currently under active development. Bug fixes and security improvements are released frequently. We strongly recommend that all users run the latest version of the software. To ensure the best security posture, please update your installation regularly and subscribe to release notifications.
 
 ---
 
