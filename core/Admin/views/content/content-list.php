@@ -202,8 +202,16 @@ $hasActiveFilters = $currentStatus !== '' || $currentSearch !== '' || $currentSo
         <div class="filter-group">
             <label for="dir-filter" class="filter-label">Order</label>
             <select name="dir" id="dir-filter" class="form-control form-control-sm" onchange="this.form.submit()">
+                <?php if (in_array($currentSort, ['date', 'updated'], true)): ?>
                 <option value="desc" <?= $currentDir === 'desc' ? 'selected' : '' ?>>Newest first</option>
                 <option value="asc" <?= $currentDir === 'asc' ? 'selected' : '' ?>>Oldest first</option>
+                <?php elseif ($currentSort === 'title'): ?>
+                <option value="asc" <?= $currentDir === 'asc' ? 'selected' : '' ?>>A → Z</option>
+                <option value="desc" <?= $currentDir === 'desc' ? 'selected' : '' ?>>Z → A</option>
+                <?php else: ?>
+                <option value="asc" <?= $currentDir === 'asc' ? 'selected' : '' ?>>Ascending</option>
+                <option value="desc" <?= $currentDir === 'desc' ? 'selected' : '' ?>>Descending</option>
+                <?php endif; ?>
             </select>
         </div>
         
