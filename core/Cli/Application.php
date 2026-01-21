@@ -1093,7 +1093,15 @@ final class Application
 
         $this->writeln('');
         $this->withSpinner('Rebuilding content index', function () {
-            $this->app->indexer()->rebuild();
+            // Spawn a new PHP process to ensure updated code is loaded
+            // The old Application class is still in memory, but disk has new code
+            $avaScript = $this->app->path('ava');
+            $result = [];
+            $exitCode = 0;
+            exec('php ' . escapeshellarg($avaScript) . ' rebuild 2>&1', $result, $exitCode);
+            if ($exitCode !== 0) {
+                throw new \RuntimeException(implode("\n", $result));
+            }
             return true;
         });
         $this->success('Content index rebuilt.');
