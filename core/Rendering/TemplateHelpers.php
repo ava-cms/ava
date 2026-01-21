@@ -18,6 +18,9 @@ final class TemplateHelpers
     private Application $app;
     private Engine $engine;
 
+    /** @var array<string, int|false> Cached asset modification times (false = doesn't exist) */
+    private static array $assetMtimes = [];
+
     public function __construct(Application $app, Engine $engine)
     {
         $this->app = $app;
@@ -102,15 +105,17 @@ final class TemplateHelpers
      * 
      * For theme assets, use: $ava->asset('style.css') or $ava->asset('js/app.js')
      * For public assets, use: $ava->asset('/assets/file.css') (leading slash)
+     * 
+     * Modification times are cached in memory to avoid repeated filesystem calls.
      */
     public function asset(string $path): string
     {
         // If path starts with /, it's a public asset
         if (str_starts_with($path, '/')) {
             $fullPath = $this->app->path('public/' . ltrim($path, '/'));
+            $mtime = $this->getAssetMtime($fullPath);
 
-            if (file_exists($fullPath)) {
-                $mtime = filemtime($fullPath);
+            if ($mtime !== false) {
                 return $path . '?v=' . $mtime;
             }
 
@@ -120,13 +125,26 @@ final class TemplateHelpers
         // Otherwise, it's a theme asset
         $theme = $this->app->config('theme', 'default');
         $themePath = $this->app->configPath('themes') . '/' . $theme . '/assets/' . $path;
+        $mtime = $this->getAssetMtime($themePath);
 
-        if (file_exists($themePath)) {
-            $mtime = filemtime($themePath);
+        if ($mtime !== false) {
             return '/theme/' . $path . '?v=' . $mtime;
         }
 
         return '/theme/' . $path;
+    }
+
+    /**
+     * Get cached asset modification time.
+     * 
+     * @return int|false Modification time or false if file doesn't exist
+     */
+    private function getAssetMtime(string $fullPath): int|false
+    {
+        if (!isset(self::$assetMtimes[$fullPath])) {
+            self::$assetMtimes[$fullPath] = @filemtime($fullPath);
+        }
+        return self::$assetMtimes[$fullPath];
     }
 
     // === Query Helpers ===

@@ -105,16 +105,16 @@ final class ReleaseChecksTest extends TestCase
     }
 
     /**
-     * Test that admin path is /admin
+     * Test that admin path is /ava-admin
      */
     public function testAdminPathIsDefault(): void
     {
         $config = require AVA_ROOT . '/app/config/ava.php';
         
         $this->assertEquals(
-            '/admin',
+            '/ava-admin',
             $config['admin']['path'] ?? '',
-            'Admin path should be "/admin" for release'
+            'Admin path should be "/ava-admin" for release'
         );
     }
 

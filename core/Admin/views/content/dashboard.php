@@ -198,6 +198,15 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
 </div>
 <?php endif; ?>
 
+<?php if ($previewToken === null || $previewToken === ''): ?>
+<div class="alert alert-info">
+    <span class="material-symbols-rounded">visibility_off</span>
+    <div class="flex-1">
+        <strong>Draft previews disabled</strong> — Set <code>security.preview_token</code> in <code>app/config/ava.php</code> to enable previewing draft content via URL.
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if ($updateCheck && $updateCheck['available']): ?>
 <div class="alert alert-info mb-5">
     <span class="material-symbols-rounded">system_update</span>

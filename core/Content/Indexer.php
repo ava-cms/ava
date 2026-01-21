@@ -701,6 +701,7 @@ final class Indexer
             'exact' => [],          // Exact path => handler
             'patterns' => [],       // Pattern routes for CPTs
             'taxonomy' => [],       // Taxonomy archive routes
+            'reverse' => [],        // Reverse lookup: type:slug => url (O(1) URL generation)
         ];
 
         foreach ($allItems as $typeName => $items) {
@@ -726,6 +727,9 @@ final class Indexer
                     'file' => $this->getRelativePath($item->filePath()),
                     'template' => $item->template() ?? $typeConfig['templates']['single'] ?? 'single.php',
                 ];
+
+                // Add to reverse lookup for O(1) URL generation
+                $routes['reverse'][$typeName . ':' . $item->slug()] = $url;
 
                 // Add redirect_from routes
                 foreach ($item->redirectFrom() as $fromUrl) {

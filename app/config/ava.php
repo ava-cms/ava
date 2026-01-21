@@ -57,7 +57,7 @@ return [
 
     'admin' => [
         'enabled' => false,
-        'path'    => '/admin',
+        'path'    => '/ava-admin',
         'theme'   => 'cyan',
 
         /*
@@ -176,7 +176,7 @@ return [
         // ⚠️  IMPORTANT: Generate a secure random token for production!
         //     Run: php -r "echo bin2hex(random_bytes(32));"
         //     Tokens under 16 characters or common words are rejected.
-        'preview_token' => null,   // Set to a 32+ character random string
+        'preview_token' => null,   // Set to a 32+ character random string, wrap in quotes ''
     ],
 
     /*

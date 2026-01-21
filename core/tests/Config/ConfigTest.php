@@ -40,7 +40,7 @@ final class ConfigTest extends TestCase
             ],
             'admin' => [
                 'enabled' => true,
-                'path' => '/admin',
+                'path' => '/ava-admin',
                 'require_login' => true,
             ],
             'plugins' => [
@@ -178,7 +178,7 @@ final class ConfigTest extends TestCase
 
     public function testAdminPath(): void
     {
-        $this->assertEquals('/admin', Arr::get($this->config, 'admin.path'));
+        $this->assertEquals('/ava-admin', Arr::get($this->config, 'admin.path'));
     }
 
     // =========================================================================

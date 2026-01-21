@@ -747,7 +747,8 @@ final class Application
         $this->keyValue('Email', $this->color($email, self::PRIMARY));
         $this->keyValue('Name', $userName);
         $this->writeln('');
-        $this->nextStep('/admin', 'Login at your admin dashboard');
+        $adminPath = $this->app->config('admin.path', '/admin');
+        $this->nextStep($adminPath, 'Login at your admin dashboard');
         $this->writeln('');
 
         return 0;

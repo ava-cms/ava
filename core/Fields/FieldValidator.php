@@ -125,13 +125,8 @@ final class FieldValidator
      */
     public function getFieldDefinitions(string $contentType): array
     {
-        // Load content_types.php directly since it's not merged into main config
-        $configPath = $this->app->path('app/config/content_types.php');
-        if (!file_exists($configPath)) {
-            return [];
-        }
-        
-        $contentTypes = require $configPath;
+        // Use Application's cached content types (avoids repeated file reads)
+        $contentTypes = $this->app->contentTypes();
         $typeConfig = $contentTypes[$contentType] ?? [];
         
         return $typeConfig['fields'] ?? [];

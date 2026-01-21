@@ -426,22 +426,16 @@ final class Router
 
     /**
      * Generate URL for a content item.
+     * 
+     * Uses O(1) reverse lookup index built during cache rebuild.
      */
     public function urlFor(string $type, string $slug): ?string
     {
         $repository = $this->app->repository();
         $routes = $repository->routes();
 
-        foreach ($routes['exact'] ?? [] as $url => $routeData) {
-            if (
-                ($routeData['content_type'] ?? '') === $type &&
-                ($routeData['slug'] ?? '') === $slug
-            ) {
-                return $url;
-            }
-        }
-
-        return null;
+        // Use reverse lookup for O(1) performance (vs O(n) linear scan)
+        return $routes['reverse'][$type . ':' . $slug] ?? null;
     }
 
     /**

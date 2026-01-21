@@ -14,7 +14,7 @@ final class Arr
      */
     public static function get(array $array, string $key, mixed $default = null): mixed
     {
-        if (isset($array[$key])) {
+        if (array_key_exists($key, $array)) {
             return $array[$key];
         }
 
