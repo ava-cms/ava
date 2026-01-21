@@ -197,6 +197,19 @@ final class Application
         return $this->path($relative);
     }
 
+    /**
+     * Get content type definitions (cached).
+     */
+    public function contentTypes(): array
+    {
+        static $cache = null;
+        if ($cache === null) {
+            $path = $this->path('app/config/content_types.php');
+            $cache = file_exists($path) ? require $path : [];
+        }
+        return $cache;
+    }
+
     // -------------------------------------------------------------------------
     // Services
     // -------------------------------------------------------------------------

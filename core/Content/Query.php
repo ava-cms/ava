@@ -78,14 +78,7 @@ final class Query
      */
     private function getContentTypeSearchConfig(string $type): array
     {
-        static $contentTypes = null;
-        
-        if ($contentTypes === null) {
-            $path = $this->app->path('app/config/content_types.php');
-            $contentTypes = file_exists($path) ? require $path : [];
-        }
-        
-        return $contentTypes[$type]['search'] ?? [];
+        return $this->app->contentTypes()[$type]['search'] ?? [];
     }
 
     /**

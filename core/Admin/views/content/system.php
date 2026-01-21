@@ -68,17 +68,8 @@ if (!$loadAvailable) {
     }
 }
 
-$cpuCount = 1;
-if (is_readable('/proc/cpuinfo')) {
-    $cpuCount = max(1, substr_count(file_get_contents('/proc/cpuinfo'), 'processor'));
-} elseif (PHP_OS_FAMILY === 'Darwin') {
-    try {
-        $result = @shell_exec('sysctl -n hw.ncpu');
-        $cpuCount = $result !== null ? ((int) $result ?: 1) : 1;
-    } catch (\Throwable) {
-        $cpuCount = 1;
-    }
-}
+// CPU count is now provided by controller (avoids shell_exec in view)
+$cpuCount = $system['cpu_count'] ?? 1;
 
 $uptime = $system['uptime'] ?? null;
 $uptimeFormatted = 'Unknown';

@@ -30,65 +30,13 @@ final class TemplateHelpers
      * Render a content item's body to HTML.
      * 
      * Uses pre-rendered cache if available for faster page loads.
+     * Content key is stored in the item during indexing.
      */
     public function body(Item $item): string
     {
-        // Compute content key for pre-render cache lookup
-        // For hierarchical types (pages), it's derived from the path
-        // For pattern types (posts), it's the slug
-        $contentKey = $this->computeContentKey($item);
+        // Use stored content_key from index, fallback to slug
+        $contentKey = $item->get('content_key') ?? $item->slug();
         return $this->engine->renderItem($item, $contentKey);
-    }
-
-    /**
-     * Compute the content key for an item (used for pre-render cache lookup).
-     */
-    private function computeContentKey(Item $item): string
-    {
-        // Load content type config
-        $contentTypesPath = $this->app->path('app/config/content_types.php');
-        if (!file_exists($contentTypesPath)) {
-            return $item->slug();
-        }
-        
-        static $contentTypes = null;
-        if ($contentTypes === null) {
-            $contentTypes = require $contentTypesPath;
-        }
-        
-        $typeConfig = $contentTypes[$item->type()] ?? [];
-        $urlConfig = $typeConfig['url'] ?? [];
-        $urlType = $urlConfig['type'] ?? 'pattern';
-        
-        // For non-hierarchical types, use slug
-        if ($urlType !== 'hierarchical') {
-            return $item->slug();
-        }
-        
-        // For hierarchical types, derive from file path
-        $filePath = $item->filePath();
-        $contentDir = $typeConfig['content_dir'] ?? $item->type();
-        $contentPath = $this->app->configPath('content') . '/' . $contentDir;
-        
-        // Remove base path to get relative path
-        if (str_starts_with($filePath, $contentPath)) {
-            $relativePath = substr($filePath, strlen($contentPath) + 1);
-        } else {
-            return $item->slug();
-        }
-        
-        // Remove .md extension and handle index files
-        $relativePath = preg_replace('/\.md$/', '', $relativePath);
-        
-        // Handle index files
-        if ($relativePath === 'index' || $relativePath === '_index') {
-            return '';
-        }
-        
-        // Remove trailing /index or /_index
-        $relativePath = preg_replace('/(\/index|^\/?_index)$/', '', $relativePath);
-        
-        return $relativePath;
     }
 
     /**

@@ -11,7 +11,8 @@
  * - $admin_url: Admin base URL
  */
 
-$hasError = isset($_GET['error']);
+// Error state passed from controller (avoids direct $_GET access)
+$errorType = $error ?? null;
 ?>
 
 <div class="content-layout">
@@ -23,7 +24,7 @@ $hasError = isset($_GET['error']);
             </span>
         </div>
         <div class="card-body">
-            <?php if ($hasError && $_GET['error'] === 'confirm'): ?>
+            <?php if ($errorType === 'confirm'): ?>
             <div class="alert alert-danger">
                 <span class="material-symbols-rounded">error</span>
                 Please type the slug exactly to confirm deletion.

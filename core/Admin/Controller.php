@@ -179,6 +179,14 @@ final class Controller
             'updateCheck' => $updateCheck,
             'recentErrorCount' => $recentErrorCount,
             'mediaStats' => $mediaStats,
+            // Flash messages from URL params (passed through controller to avoid direct $_GET in views)
+            'flash' => [
+                'action' => $request->query('action'),
+                'time' => $request->query('time'),
+                'count' => $request->query('count'),
+                'mode' => $request->query('mode'),
+                'keep_webpage_cache' => $request->query('keep_webpage_cache'),
+            ],
         ];
 
         $layout = [
@@ -1249,6 +1257,7 @@ final class Controller
             'fileParam' => $fileParam,
             'typeConfig' => $typeConfig,
             'csrf' => $this->auth->csrfToken(),
+            'error' => $request->query('error'),  // Pass error state through controller
             'site' => [
                 'name' => $this->app->config('site.name'),
                 'url' => $this->app->config('site.base_url'),
@@ -2663,6 +2672,15 @@ JS;
         $mediaFullPath = $this->app->path($mediaPath);
         $mediaSize = is_dir($mediaFullPath) ? $this->getDirectorySize($mediaFullPath) : 0;
 
+        // Detect CPU count (moved from view for security - avoids shell_exec in templates)
+        $cpuCount = 1;
+        if (is_readable('/proc/cpuinfo')) {
+            $cpuCount = max(1, substr_count((string) @file_get_contents('/proc/cpuinfo'), 'processor'));
+        } elseif (PHP_OS_FAMILY === 'Darwin' && function_exists('shell_exec')) {
+            $result = @shell_exec('sysctl -n hw.ncpu 2>/dev/null');
+            $cpuCount = $result !== null ? max(1, (int) $result) : 1;
+        }
+
         return [
             'php_version' => PHP_VERSION,
             'php_sapi' => PHP_SAPI,
@@ -2683,6 +2701,7 @@ JS;
             'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'CLI',
             'os' => PHP_OS_FAMILY . ' ' . php_uname('r'),
             'hostname' => gethostname(),
+            'cpu_count' => $cpuCount,
             'uptime' => $uptime,
             'load_avg' => $loadAvg,
             'network' => $networkInfo,

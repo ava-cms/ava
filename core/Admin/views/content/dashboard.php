@@ -143,29 +143,29 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
 
 ?>
 
-<?php if (isset($_GET['action']) && $_GET['action'] === 'rebuild'): ?>
+<?php if (($flash['action'] ?? null) === 'rebuild'): ?>
 <div class="alert alert-success">
     <span class="material-symbols-rounded">check_circle</span>
     <div class="flex-1">
-        Content index rebuilt in <?= htmlspecialchars($_GET['time'] ?? '?') ?>ms
-        <?php if (isset($_GET['keep_webpage_cache']) && $_GET['keep_webpage_cache'] === '1'): ?>
+        Content index rebuilt in <?= htmlspecialchars($flash['time'] ?? '?') ?>ms
+        <?php if (($flash['keep_webpage_cache'] ?? '') === '1'): ?>
             <div class="text-xs opacity-80">Webpage cache kept.</div>
         <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
 
-<?php if (isset($_GET['action']) && $_GET['action'] === 'flush_pages'): ?>
+<?php if (($flash['action'] ?? null) === 'flush_pages'): ?>
 <div class="alert alert-success">
     <span class="material-symbols-rounded">check_circle</span>
-    Webpage cache cleared (<?= htmlspecialchars($_GET['count'] ?? '0') ?> webpages)
+    Webpage cache cleared (<?= htmlspecialchars($flash['count'] ?? '0') ?> webpages)
 </div>
 <?php endif; ?>
 
-<?php if (isset($_GET['action']) && $_GET['action'] === 'index_mode_changed'): ?>
+<?php if (($flash['action'] ?? null) === 'index_mode_changed'): ?>
 <div class="alert alert-success">
     <span class="material-symbols-rounded">check_circle</span>
-    Index mode changed to <code><?= htmlspecialchars($_GET['mode'] ?? 'unknown') ?></code>
+    Index mode changed to <code><?= htmlspecialchars($flash['mode'] ?? 'unknown') ?></code>
 </div>
 <?php endif; ?>
 
