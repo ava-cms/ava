@@ -13,10 +13,40 @@
  * - $taxonomyTerms: Terms for each taxonomy
  * - $routes: Routes array
  * - $site: Site configuration
+ * - $filters: Current filter/sort values (status, sort, dir, q)
+ * - $indexStale: Whether the content index is stale
  */
 
 // Get preview token for draft links
 $previewToken = $ava->config('security.preview_token');
+
+// Get current filters
+$currentStatus = $filters['status'] ?? '';
+$currentSort = $filters['sort'] ?? 'date';
+$currentDir = $filters['dir'] ?? 'desc';
+$currentSearch = $filters['q'] ?? '';
+
+// Helper to build URL with current filters preserved
+$buildFilterUrl = function($params = []) use ($admin_url, $type, $currentStatus, $currentSort, $currentDir, $currentSearch, $pagination) {
+    $base = $admin_url . '/content/' . urlencode($type);
+    $query = array_merge([
+        'status' => $currentStatus,
+        'sort' => $currentSort,
+        'dir' => $currentDir,
+        'q' => $currentSearch,
+        'page' => $pagination['page'],
+    ], $params);
+    
+    // Remove default/empty values
+    if ($query['status'] === '') unset($query['status']);
+    if ($query['sort'] === 'date' && $query['dir'] === 'desc') {
+        unset($query['sort'], $query['dir']);
+    }
+    if ($query['q'] === '') unset($query['q']);
+    if (($query['page'] ?? 1) === 1) unset($query['page']);
+    
+    return $query ? $base . '?' . http_build_query($query) : $base;
+};
 
 // Helper to generate URL path for a content item
 // Mirrors the Indexer::generateUrl logic for consistent URL generation
@@ -125,7 +155,77 @@ $formatBytes = function($bytes) {
     while ($bytes >= 1024 && $i < 2) { $bytes /= 1024; $i++; }
     return round($bytes, 1) . ' ' . $units[$i];
 };
+
+// Check if any filters are active
+$hasActiveFilters = $currentStatus !== '' || $currentSearch !== '' || $currentSort !== 'date' || $currentDir !== 'desc';
 ?>
+
+<?php if ($indexStale): ?>
+<div class="content-stale-notice">
+    <span class="material-symbols-rounded">sync_problem</span>
+    <span>Content index is out of date – <a href="<?= htmlspecialchars($admin_url) ?>">rebuild</a> for the most accurate results</span>
+</div>
+<?php endif; ?>
+
+<!-- Filter Bar -->
+<div class="content-filter-bar">
+    <form method="get" action="<?= htmlspecialchars($admin_url . '/content/' . urlencode($type)) ?>" class="content-filter-form">
+        <!-- Search -->
+        <div class="filter-search">
+            <span class="material-symbols-rounded filter-search-icon">search</span>
+            <input type="text" name="q" value="<?= htmlspecialchars($currentSearch) ?>" placeholder="Search <?= htmlspecialchars(strtolower($typeConfig['label'] ?? $type)) ?>..." class="form-control form-control-sm">
+        </div>
+        
+        <!-- Status Filter -->
+        <div class="filter-group">
+            <label for="status-filter" class="filter-label">Status</label>
+            <select name="status" id="status-filter" class="form-control form-control-sm" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="published" <?= $currentStatus === 'published' ? 'selected' : '' ?>>Published</option>
+                <option value="draft" <?= $currentStatus === 'draft' ? 'selected' : '' ?>>Draft</option>
+                <option value="unlisted" <?= $currentStatus === 'unlisted' ? 'selected' : '' ?>>Unlisted</option>
+            </select>
+        </div>
+        
+        <!-- Sort -->
+        <div class="filter-group">
+            <label for="sort-filter" class="filter-label">Sort by</label>
+            <select name="sort" id="sort-filter" class="form-control form-control-sm" onchange="this.form.submit()">
+                <option value="date" <?= $currentSort === 'date' ? 'selected' : '' ?>>Date</option>
+                <option value="updated" <?= $currentSort === 'updated' ? 'selected' : '' ?>>Updated</option>
+                <option value="title" <?= $currentSort === 'title' ? 'selected' : '' ?>>Title</option>
+                <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
+            </select>
+        </div>
+        
+        <!-- Direction -->
+        <div class="filter-group">
+            <label for="dir-filter" class="filter-label">Order</label>
+            <select name="dir" id="dir-filter" class="form-control form-control-sm" onchange="this.form.submit()">
+                <option value="desc" <?= $currentDir === 'desc' ? 'selected' : '' ?>>Newest first</option>
+                <option value="asc" <?= $currentDir === 'asc' ? 'selected' : '' ?>>Oldest first</option>
+            </select>
+        </div>
+        
+        <!-- Submit for search (hidden, triggered by enter in search field) -->
+        <button type="submit" class="btn btn-secondary btn-sm filter-submit">
+            <span class="material-symbols-rounded">filter_list</span>
+            <span class="btn-label">Filter</span>
+        </button>
+        
+        <?php if ($hasActiveFilters): ?>
+        <a href="<?= htmlspecialchars($admin_url . '/content/' . urlencode($type)) ?>" class="btn btn-secondary btn-sm filter-clear" title="Clear all filters">
+            <span class="material-symbols-rounded">close</span>
+            <span class="btn-label">Clear</span>
+        </a>
+        <?php endif; ?>
+    </form>
+    
+    <div class="filter-results">
+        <?= number_format($pagination['totalItems']) ?> <?= $pagination['totalItems'] === 1 ? 'item' : 'items' ?>
+        <?php if ($hasActiveFilters): ?><span class="text-tertiary">(filtered)</span><?php endif; ?>
+    </div>
+</div>
 
 <div class="content-layout">
     <!-- Content List -->
@@ -135,12 +235,12 @@ $formatBytes = function($bytes) {
             <table class="table table-responsive">
                 <thead>
                     <tr>
-                        <th>Title</th>
+                        <th><a href="<?= htmlspecialchars($buildFilterUrl(['sort' => 'title', 'dir' => ($currentSort === 'title' && $currentDir === 'asc') ? 'desc' : 'asc', 'page' => 1])) ?>" class="th-sortable <?= $currentSort === 'title' ? 'active' : '' ?>">Title <?php if ($currentSort === 'title'): ?><span class="material-symbols-rounded th-sort-icon"><?= $currentDir === 'asc' ? 'arrow_upward' : 'arrow_downward' ?></span><?php endif; ?></a></th>
                         <th>File</th>
                         <th>URL</th>
-                        <th>Date</th>
+                        <th><a href="<?= htmlspecialchars($buildFilterUrl(['sort' => 'date', 'dir' => ($currentSort === 'date' && $currentDir === 'desc') ? 'asc' : 'desc', 'page' => 1])) ?>" class="th-sortable <?= $currentSort === 'date' ? 'active' : '' ?>">Date <?php if ($currentSort === 'date'): ?><span class="material-symbols-rounded th-sort-icon"><?= $currentDir === 'asc' ? 'arrow_upward' : 'arrow_downward' ?></span><?php endif; ?></a></th>
                         <th>Size</th>
-                        <th>Status</th>
+                        <th><a href="<?= htmlspecialchars($buildFilterUrl(['sort' => 'status', 'dir' => ($currentSort === 'status' && $currentDir === 'asc') ? 'desc' : 'asc', 'page' => 1])) ?>" class="th-sortable <?= $currentSort === 'status' ? 'active' : '' ?>">Status <?php if ($currentSort === 'status'): ?><span class="material-symbols-rounded th-sort-icon"><?= $currentDir === 'asc' ? 'arrow_upward' : 'arrow_downward' ?></span><?php endif; ?></a></th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -177,9 +277,11 @@ $formatBytes = function($bytes) {
                             ?>
                             <a href="<?= $editUrl ?>" class="table-title-link" <?= mb_strlen($title) > 40 ? 'title="' . htmlspecialchars($title) . '"' : '' ?>><?= htmlspecialchars($truncatedTitle) ?></a>
                             <div class="table-mobile-meta">
+                                <span class="mobile-meta-status badge <?= $item->isPublished() ? 'badge-success' : ($item->status() === 'draft' ? 'badge-warning' : 'badge-muted') ?>"><?= $item->status() ?></span>
                                 <?php if ($item->date()): ?>
-                                    <span class="text-xs text-tertiary"><?= $item->date()->format('M j, Y') ?></span>
+                                <span class="mobile-meta-date"><?= $item->date()->format('M j, Y') ?></span>
                                 <?php endif; ?>
+                                <code class="mobile-meta-path"><?= $itemPath ? htmlspecialchars($itemPath) : $relPath ?></code>
                             </div>
                         </td>
                         <td data-label="File">
@@ -204,7 +306,7 @@ $formatBytes = function($bytes) {
                                 <?= $item->status() ?>
                             </span>
                         </td>
-                        <td data-label="Action">
+                        <td data-label="Action" class="mobile-actions">
                             <div class="btn-group">
                                 <a href="<?= $editUrl ?>" class="btn btn-xs btn-secondary" title="Edit">
                                     <span class="material-symbols-rounded">edit</span>
@@ -231,10 +333,10 @@ $formatBytes = function($bytes) {
             </div>
             <div class="pagination-controls">
                 <?php if ($pagination['hasPrev']): ?>
-                <a href="?page=1" class="btn btn-xs btn-secondary" title="First page">
+                <a href="<?= htmlspecialchars($buildFilterUrl(['page' => 1])) ?>" class="btn btn-xs btn-secondary" title="First page">
                     <span class="material-symbols-rounded">first_page</span>
                 </a>
-                <a href="?page=<?= $pagination['page'] - 1 ?>" class="btn btn-xs btn-secondary" title="Previous page">
+                <a href="<?= htmlspecialchars($buildFilterUrl(['page' => $pagination['page'] - 1])) ?>" class="btn btn-xs btn-secondary" title="Previous page">
                     <span class="material-symbols-rounded">chevron_left</span>
                 </a>
                 <?php else: ?>
@@ -245,10 +347,10 @@ $formatBytes = function($bytes) {
                 <span class="pagination-current">Page <?= $pagination['page'] ?> of <?= $pagination['totalPages'] ?></span>
 
                 <?php if ($pagination['hasMore']): ?>
-                <a href="?page=<?= $pagination['page'] + 1 ?>" class="btn btn-xs btn-secondary" title="Next page">
+                <a href="<?= htmlspecialchars($buildFilterUrl(['page' => $pagination['page'] + 1])) ?>" class="btn btn-xs btn-secondary" title="Next page">
                     <span class="material-symbols-rounded">chevron_right</span>
                 </a>
-                <a href="?page=<?= $pagination['totalPages'] ?>" class="btn btn-xs btn-secondary" title="Last page">
+                <a href="<?= htmlspecialchars($buildFilterUrl(['page' => $pagination['totalPages']])) ?>" class="btn btn-xs btn-secondary" title="Last page">
                     <span class="material-symbols-rounded">last_page</span>
                 </a>
                 <?php else: ?>
@@ -262,12 +364,17 @@ $formatBytes = function($bytes) {
         <?php else: ?>
         <div class="empty-state">
             <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
+            <?php if ($hasActiveFilters): ?>
+            <p>No matching <?= $type ?>s found</p>
+            <p class="text-xs text-tertiary mt-2">Try adjusting your filters above</p>
+            <?php else: ?>
             <p>No <?= $type ?>s yet</p>
             <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" class="btn btn-primary mt-3">
                 <span class="material-symbols-rounded">add</span>
                 Create <?= htmlspecialchars(rtrim($typeConfig['label'] ?? ucfirst($type), 's')) ?>
             </a>
             <p class="text-xs text-tertiary mt-3">or via CLI: <code>./ava make <?= $type ?> "Your Title"</code></p>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>

@@ -321,17 +321,93 @@ final class Controller
             return null; // 404
         }
 
+        // Get filter/sort parameters from query string
+        $statusFilter = $request->query('status', '');
+        $sortBy = $request->query('sort', 'date');
+        $sortDir = $request->query('dir', 'desc');
+        $searchQuery = trim($request->query('q', ''));
+
+        // Validate sort parameters
+        $allowedSortFields = ['date', 'title', 'status', 'updated'];
+        if (!in_array($sortBy, $allowedSortFields)) {
+            $sortBy = 'date';
+        }
+        if (!in_array($sortDir, ['asc', 'desc'])) {
+            $sortDir = 'desc';
+        }
+
         // Use allMeta() - no file content loading needed
         $allItems = $repository->allMeta($type);
 
-        // Sort by date descending
-        usort($allItems, function($a, $b) {
-            $aDate = $a->date();
-            $bDate = $b->date();
-            if (!$aDate && !$bDate) return 0;
-            if (!$aDate) return 1;
-            if (!$bDate) return -1;
-            return $bDate->getTimestamp() - $aDate->getTimestamp();
+        // Apply status filter
+        if ($statusFilter !== '' && in_array($statusFilter, ['published', 'draft', 'unlisted'])) {
+            $allItems = array_filter($allItems, fn($item) => $item->status() === $statusFilter);
+            $allItems = array_values($allItems); // Re-index array
+        }
+
+        // Apply search filter
+        if ($searchQuery !== '') {
+            $searchLower = mb_strtolower($searchQuery);
+            $allItems = array_filter($allItems, function($item) use ($searchLower) {
+                // Search in title
+                if (str_contains(mb_strtolower($item->title()), $searchLower)) {
+                    return true;
+                }
+                // Search in slug
+                if (str_contains(mb_strtolower($item->slug()), $searchLower)) {
+                    return true;
+                }
+                // Search in excerpt if available
+                $excerpt = $item->excerpt();
+                if ($excerpt && str_contains(mb_strtolower($excerpt), $searchLower)) {
+                    return true;
+                }
+                return false;
+            });
+            $allItems = array_values($allItems); // Re-index array
+        }
+
+        // Sort items
+        usort($allItems, function($a, $b) use ($sortBy, $sortDir) {
+            $result = 0;
+            
+            switch ($sortBy) {
+                case 'title':
+                    $result = strcasecmp($a->title(), $b->title());
+                    break;
+                case 'status':
+                    $result = strcmp($a->status(), $b->status());
+                    break;
+                case 'updated':
+                    $aDate = $a->updated() ?? $a->date();
+                    $bDate = $b->updated() ?? $b->date();
+                    if (!$aDate && !$bDate) {
+                        $result = 0;
+                    } elseif (!$aDate) {
+                        $result = 1;
+                    } elseif (!$bDate) {
+                        $result = -1;
+                    } else {
+                        $result = $aDate->getTimestamp() - $bDate->getTimestamp();
+                    }
+                    break;
+                case 'date':
+                default:
+                    $aDate = $a->date();
+                    $bDate = $b->date();
+                    if (!$aDate && !$bDate) {
+                        $result = 0;
+                    } elseif (!$aDate) {
+                        $result = 1;
+                    } elseif (!$bDate) {
+                        $result = -1;
+                    } else {
+                        $result = $aDate->getTimestamp() - $bDate->getTimestamp();
+                    }
+                    break;
+            }
+            
+            return $sortDir === 'desc' ? -$result : $result;
         });
 
         $contentTypes = $this->getContentTypeConfig();
@@ -353,6 +429,9 @@ final class Controller
                 $totalSize += filesize($item->filePath());
             }
         }
+
+        // Check if index is stale
+        $indexStale = !$this->app->indexer()->isCacheFresh();
 
         $data = [
             'type' => $type,
@@ -379,6 +458,13 @@ final class Controller
                 'url' => $this->app->config('site.base_url'),
             ],
             'user' => $this->auth->user(),
+            'filters' => [
+                'status' => $statusFilter,
+                'sort' => $sortBy,
+                'dir' => $sortDir,
+                'q' => $searchQuery,
+            ],
+            'indexStale' => $indexStale,
         ];
 
         $archiveUrl = $typeConfig['url']['archive'] ?? null;
