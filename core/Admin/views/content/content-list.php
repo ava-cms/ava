@@ -370,16 +370,17 @@ $hasActiveFilters = $currentStatus !== '' || $currentSearch !== '' || $currentSo
         <?php endif; ?>
 
         <?php else: ?>
+        <?php $label = $typeConfig['label'] ?? ucfirst($type); ?>
         <div class="empty-state">
             <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
             <?php if ($hasActiveFilters): ?>
-            <p>No matching <?= $type ?>s found</p>
+            <p>No matching content found</p>
             <p class="text-xs text-tertiary mt-2">Try adjusting your filters above</p>
             <?php else: ?>
-            <p>No <?= $type ?>s yet</p>
-            <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" class="btn btn-primary mt-3">
+            <p>No content yet</p>
+            <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" class="btn btn-primary btn-sm mt-3">
                 <span class="material-symbols-rounded">add</span>
-                Create <?= htmlspecialchars(rtrim($typeConfig['label'] ?? ucfirst($type), 's')) ?>
+                Create <?= htmlspecialchars($label) ?>
             </a>
             <p class="text-xs text-tertiary mt-3">or via CLI: <code>./ava make <?= $type ?> "Your Title"</code></p>
             <?php endif; ?>
