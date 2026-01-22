@@ -256,6 +256,32 @@ $groupLabels = [
                        required autocomplete="off">
             </div>
 
+            <!-- Slug & Filename Row -->
+            <div class="ce-slug-filename-row">
+                <div class="ce-slug-filename-field">
+                    <label for="field-slug">URL Slug</label>
+                    <div class="ce-slug-filename-input">
+                        <input type="text" id="field-slug" name="fields[slug]" 
+                               value="<?= htmlspecialchars($currentSlug) ?>" required
+                               pattern="[a-z0-9-/]+" title="Lowercase letters, numbers, hyphens, and slashes"
+                               placeholder="url-slug">
+                        <button type="button" class="ce-auto-btn" onclick="generateSlugFromTitle()" title="Generate from title">
+                            <span class="material-symbols-rounded">auto_fix</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="ce-slug-filename-field">
+                    <label for="field-filename">Filename</label>
+                    <div class="ce-slug-filename-input">
+                        <input type="text" id="field-filename" name="filename" 
+                               value="<?= htmlspecialchars($currentFilename) ?>"
+                               pattern="[a-z0-9-]+" title="Lowercase letters, numbers, and hyphens"
+                               placeholder="filename">
+                        <span class="ce-filename-ext">.md</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Markdown Editor -->
             <div class="ce-editor" id="markdown-editor">
                 <div class="ce-editor-toolbar">
@@ -577,31 +603,6 @@ $groupLabels = [
                     <span class="material-symbols-rounded ce-section-arrow">expand_more</span>
                 </summary>
                 <div class="ce-section-content">
-                    <div class="ce-field-row">
-                        <div class="ce-field">
-                            <label class="ce-field-label" for="field-slug">URL Slug</label>
-                            <div class="ce-slug-field">
-                                <input type="text" id="field-slug" name="fields[slug]" class="ce-input"
-                                       value="<?= htmlspecialchars($currentSlug) ?>" required
-                                       pattern="[a-z0-9-/]+" title="Lowercase letters, numbers, hyphens, and slashes">
-                                <button type="button" class="ce-link-btn" onclick="generateSlugFromTitle()">
-                                    <span class="material-symbols-rounded">auto_fix</span>
-                                    Auto
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="ce-field">
-                            <label class="ce-field-label" for="field-filename">Filename</label>
-                            <div class="ce-input-suffix-wrapper">
-                                <input type="text" id="field-filename" name="filename" class="ce-input"
-                                       value="<?= htmlspecialchars($currentFilename) ?>"
-                                       pattern="[a-z0-9-]+" title="Lowercase letters, numbers, and hyphens">
-                                <span class="ce-input-suffix">.md</span>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="ce-field">
                         <label class="ce-field-label" for="field-id">Content ID</label>
                         <div class="ce-id-field">

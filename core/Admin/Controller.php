@@ -725,6 +725,108 @@ final class Controller
     }
 
     /**
+     * Edit an existing taxonomy term.
+     */
+    public function taxonomyTermEdit(Request $request, string $taxonomy, string $term): ?Response
+    {
+        $repository = $this->app->repository();
+        $taxonomies = $repository->taxonomies();
+
+        // Check if taxonomy exists
+        if (!in_array($taxonomy, $taxonomies)) {
+            return null; // 404
+        }
+
+        // Check if term exists
+        $existingTerms = $repository->terms($taxonomy);
+        if (!isset($existingTerms[$term])) {
+            return null; // 404
+        }
+
+        $termData = $existingTerms[$term];
+        $taxonomyConfig = $this->getTaxonomyConfig();
+        $config = $taxonomyConfig[$taxonomy] ?? [];
+        $error = null;
+
+        // Load raw term data from file for editing (includes description)
+        $rawTermData = $this->loadTaxonomyTermData($taxonomy, $term);
+
+        if ($request->isMethod('POST')) {
+            // CSRF check
+            $csrf = $request->post('_csrf', '');
+            if (!$this->auth->verifyCsrf($csrf)) {
+                $error = 'Invalid request. Please try again.';
+            } else {
+                $name = trim($request->post('name', ''));
+                $newSlug = trim($request->post('slug', ''));
+                $description = trim($request->post('description', ''));
+
+                // Validate name
+                if (empty($name)) {
+                    $error = 'Term name is required.';
+                } else {
+                    // Validate slug
+                    if (empty($newSlug)) {
+                        $newSlug = $this->generateSlug($name);
+                    } else {
+                        $newSlug = $this->sanitizeSlug($newSlug);
+                    }
+
+                    // Validate slug format
+                    if (!preg_match('/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/', $newSlug)) {
+                        $error = 'Slug must be lowercase alphanumeric with hyphens only.';
+                    } else {
+                        // Check for duplicate slug (only if changed)
+                        if ($newSlug !== $term && isset($existingTerms[$newSlug])) {
+                            $error = "A term with slug '{$newSlug}' already exists.";
+                        } else {
+                            // Update term in taxonomy file
+                            $result = $this->updateTaxonomyTerm($taxonomy, $term, $newSlug, $name, $description);
+                            if ($result === true) {
+                                $this->auth->regenerateCsrf();
+                                $this->logAction('INFO', "Updated term '{$term}' in taxonomy '{$taxonomy}'" . ($newSlug !== $term ? " (slug changed to '{$newSlug}')" : ''));
+
+                                // Rebuild cache to reflect changes
+                                $this->app->indexer()->rebuild();
+
+                                return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?updated=' . urlencode($name));
+                            } else {
+                                $error = $result;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $data = [
+            'taxonomy' => $taxonomy,
+            'term' => $term,
+            'termData' => $termData,
+            'rawTermData' => $rawTermData,
+            'config' => $config,
+            'error' => $error,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'Edit Term',
+            'heading' => 'Edit Term: ' . ($termData['name'] ?? $term),
+            'icon' => 'edit',
+            'activePage' => 'taxonomy-' . $taxonomy,
+            'alertError' => $error,
+            'headerActions' => '<a href="' . $this->adminUrl() . '/taxonomy/' . htmlspecialchars($taxonomy) . '" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">arrow_back</span>Back</a>',
+        ];
+
+        return Response::html($this->render('content/taxonomy-term-edit', $data, $layout));
+    }
+
+    /**
      * Parse file content (frontmatter + body) into structured data.
      */
     private function parseFileContent(string $fileContent): array
@@ -1713,6 +1815,110 @@ final class Controller
         // Filter out the term
         $terms = array_filter($terms, fn($term) => ($term['slug'] ?? '') !== $slug);
         $terms = array_values($terms);
+
+        // Write back with exclusive lock for concurrent safety
+        $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);
+        if (file_put_contents($filePath, $yaml, LOCK_EX) === false) {
+            return 'Failed to write taxonomy file.';
+        }
+
+        return true;
+    }
+
+    /**
+     * Load raw term data from taxonomy file (including description).
+     */
+    private function loadTaxonomyTermData(string $taxonomy, string $slug): array
+    {
+        $contentBase = $this->app->configPath('content');
+        $taxonomiesPath = Path::join($contentBase, '_taxonomies');
+        $filePath = Path::join($taxonomiesPath, $taxonomy . '.yml');
+
+        if (!file_exists($filePath)) {
+            return [];
+        }
+
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            return [];
+        }
+
+        try {
+            $terms = \Symfony\Component\Yaml\Yaml::parse(
+                $content,
+                \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE
+            ) ?? [];
+        } catch (\Throwable) {
+            return [];
+        }
+
+        foreach ($terms as $term) {
+            if (($term['slug'] ?? '') === $slug) {
+                return $term;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Update an existing term in a taxonomy file.
+     */
+    private function updateTaxonomyTerm(string $taxonomy, string $oldSlug, string $newSlug, string $name, string $description): bool|string
+    {
+        $contentBase = $this->app->configPath('content');
+        $taxonomiesPath = Path::join($contentBase, '_taxonomies');
+
+        if (!Path::isInside($taxonomiesPath, $contentBase)) {
+            return 'Invalid taxonomies directory.';
+        }
+
+        $filePath = Path::join($taxonomiesPath, $taxonomy . '.yml');
+        if (!Path::isInside($filePath, $taxonomiesPath)) {
+            return 'Invalid taxonomy.';
+        }
+
+        if (!file_exists($filePath)) {
+            return 'Taxonomy file not found.';
+        }
+
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            return 'Failed to read taxonomy file.';
+        }
+
+        try {
+            $terms = \Symfony\Component\Yaml\Yaml::parse(
+                $content,
+                \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE
+            ) ?? [];
+        } catch (\Throwable) {
+            return 'Invalid taxonomy file format.';
+        }
+
+        if (!is_array($terms)) {
+            return 'Invalid taxonomy file format.';
+        }
+
+        // Find and update the term
+        $found = false;
+        foreach ($terms as $key => $term) {
+            if (($term['slug'] ?? '') === $oldSlug) {
+                $terms[$key] = [
+                    'slug' => $newSlug,
+                    'name' => $name,
+                ];
+                if (!empty($description)) {
+                    $terms[$key]['description'] = $description;
+                }
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            return 'Term not found in taxonomy file.';
+        }
 
         // Write back with exclusive lock for concurrent safety
         $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);

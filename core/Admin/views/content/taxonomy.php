@@ -26,6 +26,7 @@ $ui = $config['ui'] ?? [];
 // Flash messages from redirects
 $deleted = $_GET['deleted'] ?? null;
 $created = $_GET['created'] ?? null;
+$updated = $_GET['updated'] ?? null;
 $error = $_GET['error'] ?? null;
 ?>
 
@@ -40,6 +41,13 @@ $error = $_GET['error'] ?? null;
 <div class="alert alert-success mb-4">
     <span class="material-symbols-rounded">check_circle</span>
     <div>Term "<?= htmlspecialchars($created) ?>" was created successfully.</div>
+</div>
+<?php endif; ?>
+
+<?php if ($updated): ?>
+<div class="alert alert-success mb-4">
+    <span class="material-symbols-rounded">check_circle</span>
+    <div>Term "<?= htmlspecialchars($updated) ?>" was updated successfully.</div>
 </div>
 <?php endif; ?>
 
@@ -101,6 +109,10 @@ $error = $_GET['error'] ?? null;
                         </td>
                         <td data-label="Action">
                             <div class="btn-group">
+                                <a href="<?= htmlspecialchars($admin_url) ?>/taxonomy/<?= htmlspecialchars($taxonomy) ?>/<?= htmlspecialchars($slug) ?>/edit" class="btn btn-xs btn-secondary" title="Edit term">
+                                    <span class="material-symbols-rounded">edit</span>
+                                    <span class="btn-label">Edit</span>
+                                </a>
                                 <a href="<?= htmlspecialchars($termUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary" title="View archive">
                                     <span class="material-symbols-rounded">open_in_new</span>
                                     <span class="btn-label">View</span>

@@ -3751,6 +3751,101 @@ select[multiple].fm-tax-select {
     }
 }
 
+/* Slug & Filename Row */
+.ce-slug-filename-row {
+    display: flex;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-4);
+}
+
+.ce-slug-filename-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    
+    & label {
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+}
+
+.ce-slug-filename-input {
+    display: flex;
+    align-items: stretch;
+    
+    & input {
+        flex: 1;
+        padding: var(--sp-2) var(--sp-3);
+        font-size: var(--text-sm);
+        color: var(--text);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        
+        &::placeholder {
+            color: var(--text-tertiary);
+        }
+        
+        &:hover {
+            border-color: var(--border-light);
+        }
+        
+        &:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-subtle);
+            z-index: 1;
+        }
+    }
+}
+
+.ce-auto-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--sp-2);
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    cursor: pointer;
+    transition: all 0.15s;
+    
+    &:hover {
+        background: var(--bg-hover);
+        color: var(--accent);
+    }
+    
+    & .material-symbols-rounded {
+        font-size: 18px;
+    }
+}
+
+.ce-filename-ext {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--sp-3);
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+@media (max-width: 600px) {
+    .ce-slug-filename-row {
+        flex-direction: column;
+        gap: var(--sp-3);
+    }
+}
+
 /* Markdown Editor */
 .ce-editor {
     display: flex;

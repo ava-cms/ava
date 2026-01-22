@@ -181,6 +181,11 @@ final class AdminRouter
             return $this->handleTaxonomyTermCreate($request, $params['taxonomy']);
         });
 
+        // Taxonomy term edit (protected) - pattern: /admin/taxonomy/{taxonomy}/{term}/edit
+        $router->addRoute($basePath . '/taxonomy/{taxonomy}/{term}/edit', function (Request $request, array $params) {
+            return $this->handleTaxonomyTermEdit($request, $params['taxonomy'], $params['term']);
+        });
+
         // Taxonomy term delete (protected) - pattern: /admin/taxonomy/{taxonomy}/{term}/delete
         $router->addRoute($basePath . '/taxonomy/{taxonomy}/{term}/delete', function (Request $request, array $params) {
             return $this->handleTaxonomyTermDelete($request, $params['taxonomy'], $params['term']);
@@ -402,6 +407,31 @@ final class AdminRouter
         }
 
         $response = $this->controller->taxonomyTermCreate($request, $taxonomy);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle taxonomy term edit request.
+     */
+    private function handleTaxonomyTermEdit(Request $request, string $taxonomy, string $term): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->taxonomyTermEdit($request, $taxonomy, $term);
 
         if ($response === null) {
             return null;
