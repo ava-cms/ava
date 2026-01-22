@@ -31,15 +31,7 @@ final class WebpageCache
         $this->ttl = $app->config('webpage_cache.ttl'); // null = forever (until cleared)
         $this->exclude = $app->config('webpage_cache.exclude', []);
         
-        // Pre-compile exclusion patterns to regex for faster matching
-        foreach ($this->exclude as $pattern) {
-            $regex = str_replace(
-                ['*', '?'],
-                ['.*', '.'],
-                preg_quote($pattern, '/')
-            );
-            $this->excludePatterns[$pattern] = '/^' . $regex . '$/';
-        }
+        // Lazy compilation: excludePatterns is populated on demand
     }
 
     /**
@@ -171,6 +163,18 @@ final class WebpageCache
             return null;
         }
 
+        // Check conditional GET (If-Modified-Since)
+        if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
+            $ifModifiedSince = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
+            if ($ifModifiedSince >= $mtime) {
+                // Return 304 via Response object (requires manual header setting or helper)
+                $response = new Response('', 304);
+                return $response
+                    ->withHeader('X-Page-Cache', 'HIT')
+                    ->withHeader('X-Fast-Path', 'standard');
+            }
+        }
+
         // Read file content
         $content = @file_get_contents($cacheFile);
         if ($content === false) {
@@ -179,6 +183,7 @@ final class WebpageCache
 
         // Build response with pre-computed age (avoid second stat)
         return Response::html($content)
+            ->withHeader('Last-Modified', gmdate('D, d M Y H:i:s T', $mtime))
             ->withHeader('X-Page-Cache', 'HIT')
             ->withHeader('X-Cache-Age', (string) $age);
     }
@@ -353,19 +358,17 @@ final class WebpageCache
      */
     private function matchesPattern(string $path, string $pattern): bool
     {
-        // Use pre-compiled pattern if available (for exclusion patterns)
-        if (isset($this->excludePatterns[$pattern])) {
-            return (bool) preg_match($this->excludePatterns[$pattern], $path);
+        // Use pre-compiled pattern if available, or compile and cache it
+        if (!isset($this->excludePatterns[$pattern])) {
+            $regex = str_replace(
+                ['*', '?'],
+                ['.*', '.'],
+                preg_quote($pattern, '/')
+            );
+            $this->excludePatterns[$pattern] = '/^' . $regex . '$/';
         }
-        
-        // Fallback: compile pattern dynamically (for clearPattern usage)
-        $regex = str_replace(
-            ['*', '?'],
-            ['.*', '.'],
-            preg_quote($pattern, '/')
-        );
 
-        return (bool) preg_match('/^' . $regex . '$/', $path);
+        return (bool) preg_match($this->excludePatterns[$pattern], $path);
     }
 
     /**

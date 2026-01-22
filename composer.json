@@ -22,6 +22,7 @@
         "ava": "php ava"
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "optimize-autoloader": true
     }
 }

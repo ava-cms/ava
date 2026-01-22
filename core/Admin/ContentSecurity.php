@@ -33,6 +33,10 @@ final class ContentSecurity
         'button',    // Part of form-based attacks
         'textarea',  // Part of form-based attacks
         'select',    // Part of form-based attacks
+        'link',      // Can load external resources
+        'style',     // CSS attacks
+        'svg',       // Complex attack surface
+        'math',      // MathML attacks
     ];
 
     /**
@@ -101,14 +105,17 @@ final class ContentSecurity
 
         // Check for blocked tags
         foreach (self::BLOCKED_TAGS as $tag) {
-            if (preg_match('/<' . preg_quote($tag, '/') . '[\s>]/i', $content)) {
+            // Check for tag start followed by space, slash, or closing bracket
+            // Handle: <script>, <script src="...">, <script/>, <script/src="...">
+            if (preg_match('/<' . preg_quote($tag, '/') . '([\s\/>]|$)/i', $content)) {
                 $errors[] = "Blocked tag <{$tag}> detected. For security, this tag cannot be added via the admin interface. Use the file system to add this content.";
             }
         }
 
         // Check for blocked event handler attributes
         foreach (self::BLOCKED_ATTRIBUTES as $attr) {
-            if (preg_match('/\s' . preg_quote($attr, '/') . '\s*=/i', $content)) {
+            // Check for attribute preceded by space or slash (e.g. <img/onload=...>)
+            if (preg_match('/[\s\/]' . preg_quote($attr, '/') . '\s*=/i', $content)) {
                 $errors[] = "Blocked attribute '{$attr}' detected. JavaScript event handlers are not allowed via the admin interface.";
             }
         }

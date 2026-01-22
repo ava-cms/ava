@@ -184,8 +184,10 @@ final class Response
             header("{$name}: {$value}");
         }
 
-        // Send content
-        echo $this->content;
+        // Send content (except for 204/304)
+        if ($this->status !== 204 && $this->status !== 304) {
+            echo $this->content;
+        }
     }
 
     /**

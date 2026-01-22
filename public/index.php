@@ -63,8 +63,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
                             $age = time() - $mtime;
                             
                             if ($ttl === null || $age <= $ttl) {
+                                // Check conditional GET (If-Modified-Since)
+                                if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
+                                    $ifModifiedSince = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
+                                    if ($ifModifiedSince >= $mtime) {
+                                        header('HTTP/1.1 304 Not Modified');
+                                        header('X-Page-Cache: HIT');
+                                        header('X-Fast-Path: ultra');
+                                        exit;
+                                    }
+                                }
+
                                 // Serve cached file directly!
                                 header('Content-Type: text/html; charset=utf-8');
+                                header('Last-Modified: ' . gmdate('D, d M Y H:i:s T', $mtime));
                                 header('X-Page-Cache: HIT');
                                 header('X-Fast-Path: ultra');
                                 header('X-Cache-Age: ' . $age);
