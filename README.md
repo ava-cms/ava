@@ -102,6 +102,8 @@ That’s it! Ava CMS is designed to run happily whether it's on modest shared ho
 
 ### 1) Install
 
+> ⚠️ **Always install from an official release.** Do not clone the repository directly—the main branch may contain incomplete or unstable work-in-progress code.
+
 **Option A: Download a release**
 
 - Download the latest release: https://github.com/avacms/ava/releases
