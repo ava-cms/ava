@@ -16,6 +16,14 @@
         "psr-4": {
             "Ava\\": "core/",
             "App\\": "app/src/"
+        },
+        "exclude-from-classmap": [
+            "core/tests/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ava\\Tests\\": "core/tests/"
         }
     },
     "scripts": {

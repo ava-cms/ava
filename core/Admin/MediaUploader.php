@@ -155,7 +155,8 @@ final class MediaUploader
             return false;
         }
         
-        return str_starts_with($realTargetPath, $realMediaPath);
+        // Use DIRECTORY_SEPARATOR to prevent prefix attacks (e.g., /media vs /media-evil)
+        return $realTargetPath === $realMediaPath || str_starts_with($realTargetPath, $realMediaPath . DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -334,7 +335,8 @@ final class MediaUploader
         // For new directories, check parent
         $checkDir = is_dir($finalDir) ? $finalDir : dirname($finalDir);
         $realFinalDir = realpath($checkDir);
-        if ($realFinalDir === false || !str_starts_with($realFinalDir, $realMediaPath)) {
+        // Use DIRECTORY_SEPARATOR to prevent prefix attacks (e.g., /media vs /media-evil)
+        if ($realFinalDir === false || ($realFinalDir !== $realMediaPath && !str_starts_with($realFinalDir, $realMediaPath . DIRECTORY_SEPARATOR))) {
             return $this->error('Path traversal detected');
         }
 
@@ -1064,7 +1066,8 @@ final class MediaUploader
         if ($realMediaPath === false || $realTargetPath === false) {
             return [];
         }
-        if (!str_starts_with($realTargetPath, $realMediaPath)) {
+        // Use DIRECTORY_SEPARATOR to prevent prefix attacks (e.g., /media vs /media-evil)
+        if ($realTargetPath !== $realMediaPath && !str_starts_with($realTargetPath, $realMediaPath . DIRECTORY_SEPARATOR)) {
             return []; // Directory traversal attempt
         }
 
@@ -1202,7 +1205,8 @@ final class MediaUploader
         if ($realMediaPath === false || $realTargetPath === false) {
             return [];
         }
-        if (!str_starts_with($realTargetPath, $realMediaPath)) {
+        // Use DIRECTORY_SEPARATOR to prevent prefix attacks (e.g., /media vs /media-evil)
+        if ($realTargetPath !== $realMediaPath && !str_starts_with($realTargetPath, $realMediaPath . DIRECTORY_SEPARATOR)) {
             return []; // Directory traversal attempt
         }
 
@@ -1365,7 +1369,8 @@ final class MediaUploader
             return $this->error('File not found.');
         }
         
-        if (!str_starts_with($realFilePath, $realMediaPath)) {
+        // Use DIRECTORY_SEPARATOR to prevent prefix attacks (e.g., /media vs /media-evil)
+        if (!str_starts_with($realFilePath, $realMediaPath . DIRECTORY_SEPARATOR)) {
             return $this->error('Access denied.');
         }
         
