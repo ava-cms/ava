@@ -202,6 +202,20 @@ final class ReleaseChecksTest extends TestCase
         );
     }
 
+    /**
+     * Test that content index rebuild is set to auto
+     */
+    public function testContentIndexRebuildIsAuto(): void
+    {
+        $config = require AVA_ROOT . '/app/config/ava.php';
+        
+        $this->assertEquals(
+            'auto',
+            $config['content_index']['mode'] ?? '',
+            'Content index rebuild mode should be "auto" for release'
+        );
+    }
+
     // =========================================================================
     // Version Checks
     // =========================================================================
