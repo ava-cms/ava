@@ -492,39 +492,8 @@ final class Indexer
         $cache = [];
         $contentTypes = $this->loadContentTypes();
         
-        // Create a minimal markdown renderer for pre-rendering
-        // We need to be careful not to load the full rendering engine
-        $markdownConfig = $this->app->config('content.markdown', []);
-        $enableHeadingIds = $markdownConfig['heading_ids'] ?? true;
-        
-        $config = [
-            'html_input' => ($markdownConfig['allow_html'] ?? true) ? 'allow' : 'strip',
-            'allow_unsafe_links' => false,
-            'disallowed_raw_html' => [
-                'disallowed_tags' => $markdownConfig['disallowed_tags'] ?? [],
-            ],
-        ];
-        
-        if ($enableHeadingIds) {
-            $config['heading_permalink'] = [
-                'apply_id_to_heading' => true,
-                'insert' => 'none',
-                'min_heading_level' => 1,
-                'max_heading_level' => 6,
-            ];
-        }
-        
-        $environment = new \League\CommonMark\Environment\Environment($config);
-        $environment->addExtension(new \League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension());
-        $environment->addExtension(new \League\CommonMark\Extension\GithubFlavoredMarkdownExtension());
-        if ($enableHeadingIds) {
-            $environment->addExtension(new \League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension());
-        }
-        
-        // Allow plugins to configure markdown (same hook as rendering engine)
-        Hooks::doAction('markdown.configure', $environment);
-        
-        $converter = new \League\CommonMark\MarkdownConverter($environment);
+        // Use shared markdown converter from Application
+        $converter = $this->app->markdown();
         
         // Path aliases for expansion
         $aliases = $this->app->config('paths.aliases', []);

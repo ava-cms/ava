@@ -7,11 +7,6 @@ namespace Ava\Rendering;
 use Ava\Application;
 use Ava\Content\Item;
 use Ava\Plugins\Hooks;
-use League\CommonMark\Environment\Environment;
-use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
-use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
-use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
-use League\CommonMark\MarkdownConverter;
 
 /**
  * Rendering Engine
@@ -21,7 +16,6 @@ use League\CommonMark\MarkdownConverter;
 final class Engine
 {
     private Application $app;
-    private ?MarkdownConverter $markdown = null;
 
     public function __construct(Application $app)
     {
@@ -214,49 +208,11 @@ final class Engine
     }
 
     /**
-     * Get or create the Markdown converter.
+     * Get the shared Markdown converter.
      */
-    private function getMarkdownConverter(): MarkdownConverter
+    private function getMarkdownConverter(): \League\CommonMark\MarkdownConverter
     {
-        if ($this->markdown === null) {
-            $enableHeadingIds = $this->app->config('content.markdown.heading_ids', true);
-
-            $config = [
-                'html_input' => $this->app->config('content.markdown.allow_html', true)
-                    ? 'allow'
-                    : 'strip',
-                'allow_unsafe_links' => false,
-                // GFM registers the DisallowedRawHtmlExtension; configure it so filesystem content
-                // can opt into allowing tags like iframe while still letting users block others.
-                'disallowed_raw_html' => [
-                    'disallowed_tags' => $this->app->config('content.markdown.disallowed_tags', []),
-                ],
-            ];
-
-            if ($enableHeadingIds) {
-                // Add ids to headings for in-page anchors without visible permalink markup
-                $config['heading_permalink'] = [
-                    'apply_id_to_heading' => true,
-                    'insert' => 'none', // Do not inject extra anchor markup
-                    'min_heading_level' => 1,
-                    'max_heading_level' => 6,
-                ];
-            }
-
-            $environment = new Environment($config);
-            $environment->addExtension(new CommonMarkCoreExtension());
-            $environment->addExtension(new GithubFlavoredMarkdownExtension());
-            if ($enableHeadingIds) {
-                $environment->addExtension(new HeadingPermalinkExtension());
-            }
-
-            // Allow plugins to add extensions
-            Hooks::doAction('markdown.configure', $environment);
-
-            $this->markdown = new MarkdownConverter($environment);
-        }
-
-        return $this->markdown;
+        return $this->app->markdown();
     }
 
     /**

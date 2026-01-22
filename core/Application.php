@@ -9,9 +9,15 @@ use Ava\Content\Repository;
 use Ava\Http\WebpageCache;
 use Ava\Http\Request;
 use Ava\Http\Response;
+use Ava\Plugins\Hooks;
 use Ava\Rendering\Engine as RenderingEngine;
 use Ava\Routing\Router;
 use Ava\Shortcodes\Engine as ShortcodeEngine;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
+use League\CommonMark\MarkdownConverter;
 
 /**
  * Ava CMS Application
@@ -248,6 +254,50 @@ final class Application
     }
 
     /**
+     * Get or create the shared Markdown converter.
+     * 
+     * This is used by both the rendering engine and the indexer to ensure
+     * consistent Markdown processing and avoid duplicating setup code.
+     */
+    public function markdown(): MarkdownConverter
+    {
+        return $this->service('markdown', function () {
+            $enableHeadingIds = $this->config('content.markdown.heading_ids', true);
+
+            $config = [
+                'html_input' => $this->config('content.markdown.allow_html', true)
+                    ? 'allow'
+                    : 'strip',
+                'allow_unsafe_links' => false,
+                'disallowed_raw_html' => [
+                    'disallowed_tags' => $this->config('content.markdown.disallowed_tags', []),
+                ],
+            ];
+
+            if ($enableHeadingIds) {
+                $config['heading_permalink'] = [
+                    'apply_id_to_heading' => true,
+                    'insert' => 'none',
+                    'min_heading_level' => 1,
+                    'max_heading_level' => 6,
+                ];
+            }
+
+            $environment = new Environment($config);
+            $environment->addExtension(new CommonMarkCoreExtension());
+            $environment->addExtension(new GithubFlavoredMarkdownExtension());
+            if ($enableHeadingIds) {
+                $environment->addExtension(new HeadingPermalinkExtension());
+            }
+
+            // Allow plugins to add extensions
+            Hooks::doAction('markdown.configure', $environment);
+
+            return new MarkdownConverter($environment);
+        });
+    }
+
+    /**
      * Create a new content query.
      * 
      * Unlike other services, this returns a new instance each time
@@ -367,7 +417,8 @@ final class Application
             $realPath = realpath($fullPath);
 
             // Ensure the resolved path is within the assets directory
-            if ($realPath === false || !str_starts_with($realPath, $assetsDir . '/')) {
+            // Use DIRECTORY_SEPARATOR for cross-platform compatibility (Windows uses backslashes)
+            if ($realPath === false || !str_starts_with($realPath, $assetsDir . DIRECTORY_SEPARATOR)) {
                 return null; // Let it 404
             }
 
@@ -430,7 +481,7 @@ final class Application
                 $fullPath = $coreAssetsDir . '/' . $assetPath;
                 $realPath = realpath($fullPath);
                 
-                    if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . '/') && is_file($realPath)) {
+                    if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . DIRECTORY_SEPARATOR) && is_file($realPath)) {
                         return $this->serveAsset($request, $realPath);
                 }
             }
@@ -446,7 +497,7 @@ final class Application
                     $fullPath = $pluginAssetsDir . '/' . $pluginAssetPath;
                     $realPath = realpath($fullPath);
                     
-                    if ($realPath !== false && str_starts_with($realPath, $pluginAssetsDir . '/') && is_file($realPath)) {
+                    if ($realPath !== false && str_starts_with($realPath, $pluginAssetsDir . DIRECTORY_SEPARATOR) && is_file($realPath)) {
                         return $this->serveAsset($request, $realPath);
                     }
                 }
@@ -461,7 +512,7 @@ final class Application
             $fullPath = $assetsDir . '/' . $assetPath;
             $realPath = realpath($fullPath);
 
-            if ($realPath === false || !str_starts_with($realPath, $assetsDir . '/') || !is_file($realPath)) {
+            if ($realPath === false || !str_starts_with($realPath, $assetsDir . DIRECTORY_SEPARATOR) || !is_file($realPath)) {
                 return null;
             }
 
