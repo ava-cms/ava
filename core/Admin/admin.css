@@ -474,6 +474,11 @@ code {
         color: #fff;
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
+
     &.active {
         background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 25%, transparent) 0%, color-mix(in srgb, var(--accent) 10%, transparent) 70%, transparent 100%);
         color: #fff;
@@ -615,6 +620,11 @@ code {
     &:hover {
         background: color-mix(in srgb, var(--accent) 15%, transparent);
         color: #fff;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 
     & .material-symbols-rounded {
@@ -897,6 +907,11 @@ code {
 
     & .material-symbols-rounded {
         font-size: 16px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 
     &:disabled {
@@ -2065,6 +2080,11 @@ code {
         color: var(--text);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
     &.active {
         background: var(--accent-subtle);
         color: var(--accent);
@@ -2834,6 +2854,11 @@ select[multiple].fm-tax-select {
         color: var(--text-secondary);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
     &.active {
         background: var(--accent);
         color: white;
@@ -2999,6 +3024,11 @@ select[multiple].fm-tax-select {
     &:hover {
         background: white;
         transform: scale(1.1);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 
     &.copied {
@@ -3214,6 +3244,11 @@ select[multiple].fm-tax-select {
     &:hover {
         background: var(--surface-2);
         color: var(--text);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 }
 
@@ -3496,6 +3531,11 @@ select[multiple].fm-tax-select {
         box-shadow: inset 0 -1px 0 var(--bg-card);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
     &.active {
         color: var(--text);
         background: var(--bg-card);
@@ -3627,6 +3667,11 @@ select[multiple].fm-tax-select {
         border-color: var(--border-light);
     }
     
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+    
     & .material-symbols-rounded {
         font-size: 18px;
     }
@@ -3680,8 +3725,15 @@ select[multiple].fm-tax-select {
     opacity: 0.7;
     cursor: pointer;
     padding: var(--sp-1);
+    border-radius: var(--radius-sm);
     
     &:hover {
+        opacity: 1;
+    }
+    
+    &:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
         opacity: 1;
     }
 }
@@ -3820,6 +3872,11 @@ select[multiple].fm-tax-select {
     &:hover {
         background: var(--bg-hover);
         color: var(--accent);
+    }
+    
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
     
     & .material-symbols-rounded {
@@ -4291,6 +4348,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
         color: var(--text);
     }
     
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+    
     & .material-symbols-rounded {
         font-size: 18px;
     }
@@ -4305,7 +4367,20 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     font-size: var(--text-sm);
     
     & input[type="checkbox"] {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+    
+    & input:focus-visible + .ce-checkbox-mark {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
     
     & input:checked + .ce-checkbox-mark {
@@ -4381,6 +4456,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
         background: var(--danger-subtle);
     }
     
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+    
     & .material-symbols-rounded {
         font-size: 16px;
     }
@@ -4400,6 +4480,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     
     &:hover {
         color: var(--accent-hover);
+    }
+    
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
     
     & .material-symbols-rounded {
@@ -4535,11 +4620,29 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     transition: all 0.15s;
     
     & input {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+    
+    & input:focus-visible + .ce-status-dot {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
     
     &:hover {
         background: var(--bg-hover);
+    }
+    
+    &:has(input:focus-visible) {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
     
     &.active {
@@ -4616,11 +4719,24 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     transition: all 0.15s;
     
     & input {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
     
     &:hover {
         background: var(--bg-hover);
+    }
+    
+    &:has(input:focus-visible) {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
     }
     
     &.checked {
@@ -4743,6 +4859,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     &:hover {
         background: var(--bg-hover);
         color: var(--text);
+    }
+    
+    &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 }
 

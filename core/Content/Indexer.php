@@ -1031,7 +1031,10 @@ final class Indexer
      */
     private function getRelativePath(string $absolutePath): string
     {
-        $contentPath = $this->app->configPath('content');
+        // Normalize path separators for cross-platform compatibility
+        $absolutePath = str_replace('\\', '/', $absolutePath);
+        $contentPath = str_replace('\\', '/', $this->app->configPath('content'));
+        
         if (str_starts_with($absolutePath, $contentPath)) {
             return ltrim(substr($absolutePath, strlen($contentPath)), '/');
         }
