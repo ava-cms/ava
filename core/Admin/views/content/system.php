@@ -125,7 +125,14 @@ $loadColor = function($val) use ($cpuCount) {
 
 <!-- Sticky Tab Navigation -->
 <div class="sticky-tabs">
-    <button class="tab-btn active" data-tab="server">
+    <?php if (!empty($debugInfo['recent_errors'])): ?>
+    <button class="tab-btn active" data-tab="errors">
+        <span class="material-symbols-rounded">error</span>
+        Errors
+        <span class="badge badge-error ml-1"><?= count($debugInfo['recent_errors']) ?></span>
+    </button>
+    <?php endif; ?>
+    <button class="tab-btn <?= empty($debugInfo['recent_errors']) ? 'active' : '' ?>" data-tab="server">
         <span class="material-symbols-rounded">dns</span>
         Server
     </button>
@@ -147,8 +154,27 @@ $loadColor = function($val) use ($cpuCount) {
     </button>
 </div>
 
+<?php if (!empty($debugInfo['recent_errors'])): ?>
+<!-- Errors Tab -->
+<div class="tab-panel active" id="tab-errors">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title"><span class="material-symbols-rounded">error</span> Recent Errors</span>
+            <div class="d-flex gap-2">
+                <span class="badge badge-error"><?= count($debugInfo['recent_errors']) ?></span>
+                <button class="btn btn-sm btn-secondary" onclick="clearErrorLog()" id="clearBtn"><span class="material-symbols-rounded">delete_sweep</span> Clear</button>
+            </div>
+        </div>
+        <pre class="card-body error-log-pre"><?php foreach ($debugInfo['recent_errors'] as $error): 
+echo htmlspecialchars('[' . $error['level'] . '] ' . $error['time'] . "\n");
+echo htmlspecialchars($error['message']) . "\n\n";
+endforeach; ?></pre>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Server Tab -->
-<div class="tab-panel active" id="tab-server">
+<div class="tab-panel <?= empty($debugInfo['recent_errors']) ? 'active' : '' ?>" id="tab-server">
 
 <!-- Server Load & Memory -->
 <div class="grid grid-2">
@@ -539,24 +565,8 @@ $loadColor = function($val) use ($cpuCount) {
 <!-- Directories Tab -->
 <div class="tab-panel" id="tab-directories">
 
-<?php if (!empty($debugInfo['recent_errors'])): ?>
-<div class="card">
-    <div class="card-header">
-        <span class="card-title"><span class="material-symbols-rounded">error</span> Recent Errors</span>
-        <div class="d-flex gap-2">
-            <span class="badge badge-error"><?= count($debugInfo['recent_errors']) ?></span>
-            <button class="btn btn-sm btn-secondary" onclick="clearErrorLog()" id="clearBtn"><span class="material-symbols-rounded">delete_sweep</span> Clear</button>
-        </div>
-    </div>
-    <pre class="card-body error-log-pre"><?php foreach ($debugInfo['recent_errors'] as $error): 
-echo htmlspecialchars('[' . $error['level'] . '] ' . $error['time'] . "\n");
-echo htmlspecialchars($error['message']) . "\n\n";
-endforeach; ?></pre>
-</div>
-<?php endif; ?>
-
 <!-- Directory Status -->
-<div class="card <?= !empty($debugInfo['recent_errors']) ? 'mt-4' : '' ?>">
+<div class="card">
     <div class="card-header">
         <span class="card-title"><span class="material-symbols-rounded">folder</span> Directory Status</span>
         <?php 
@@ -759,7 +769,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // Restore saved tab
 const savedTab = localStorage.getItem('ava-system-tab');
-if (savedTab) {
+const hasErrors = <?= !empty($debugInfo['recent_errors']) ? 'true' : 'false' ?>;
+
+// If there are errors, show the errors tab by default (unless user explicitly navigates away)
+if (hasErrors && !savedTab) {
+    // Errors tab is already active by default
+} else if (savedTab) {
     const btn = document.querySelector('.tab-btn[data-tab="' + savedTab + '"]');
     if (btn) btn.click();
 }
