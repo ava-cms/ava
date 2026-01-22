@@ -90,6 +90,11 @@ $jsConfig = [
             <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>" class="btn btn-secondary">
                 Cancel
             </a>
+            <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" 
+               class="btn btn-secondary" title="Switch to visual field editor">
+                <span class="material-symbols-rounded">view_compact</span>
+                Field Editor
+            </a>
         </div>
     </div>
 </form>

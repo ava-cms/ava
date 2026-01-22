@@ -787,102 +787,114 @@ final class Controller
         $taxonomyConfig = $this->getTaxonomyConfig();
         $error = null;
         $securityWarnings = [];
+        
+        // Determine editor mode (visual is default for create)
+        $mode = $request->query('mode', 'visual');
+        if (!in_array($mode, ['visual', 'raw'])) {
+            $mode = 'visual';
+        }
+        
+        // Defaults for new content
+        $typeLabel = rtrim($typeConfig['label'] ?? ucfirst($type), 's');
+        $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
+        $today = date('Y-m-d');
+        $defaultSlug = 'new-' . strtolower($typeLabel);
+        $defaultFilename = $usesDate ? "{$today}-{$defaultSlug}" : $defaultSlug;
+        
+        // Track submitted values for visual mode (to preserve on error)
+        $submittedFields = [];
+        $submittedFilename = $defaultFilename;
 
         if ($request->isMethod('POST')) {
             $csrfError = $this->verifyInlinePostCsrf($request);
             if ($csrfError !== null) {
                 $error = $csrfError;
             } else {
-                // Get filename from form (without .md extension)
-                $filename = trim($request->post('filename', ''));
+                // Check which editor mode was used for submission
+                $editorMode = $request->post('_editor_mode', 'raw');
                 
-                // Parse the unified file content
-                $fileContent = $request->post('file_content', '');
-                $parsed = $this->parseFileContent($fileContent);
-                
-                if ($parsed['error']) {
-                    $error = $parsed['error'];
-                } else {
-                    $fm = $parsed['frontmatter'];
-                    $body = $parsed['body'];
-                    
-                    $title = trim($fm['title'] ?? '');
-                    $slug = trim($fm['slug'] ?? '');
-                    $status = $fm['status'] ?? 'draft';
-                    $date = $fm['date'] ?? '';
-                    $excerpt = $fm['excerpt'] ?? '';
-                    $id = $fm['id'] ?? '';
-                    $categories = $fm['category'] ?? [];
-                    $tags = $fm['tag'] ?? [];
-                    
-                    // Convert single values to arrays
-                    if (is_string($categories)) $categories = [$categories];
-                    if (is_string($tags)) $tags = [$tags];
-
-                    // Validate title
-                    if (empty($title)) {
-                        $error = 'Title is required in frontmatter.';
+                if ($editorMode === 'visual') {
+                    // Handle visual editor form submission
+                    $result = $this->handleVisualCreateSubmission($request, $type, $typeConfig);
+                    if ($result['success']) {
+                        $this->auth->regenerateCsrf();
+                        $this->logAction('INFO', "Created {$type} '{$result['title']}' (file: {$result['filename']}.md, slug: {$result['slug']})");
+                        $this->app->indexer()->rebuild();
+                        return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($result['title']));
                     } else {
-                        // Generate slug if not provided
-                        if (empty($slug)) {
-                            $slug = $this->generateSlug($title);
-                        }
+                        $error = $result['error'];
+                        $securityWarnings = $result['warnings'] ?? [];
+                        $submittedFields = $result['fields'] ?? [];
+                        $submittedFilename = $result['filename'] ?? $defaultFilename;
+                    }
+                } else {
+                    // Handle raw editor form submission (existing logic)
+                    $filename = trim($request->post('filename', ''));
+                    $fileContent = $request->post('file_content', '');
+                    $parsed = $this->parseFileContent($fileContent);
+                    
+                    if ($parsed['error']) {
+                        $error = $parsed['error'];
+                    } else {
+                        $fm = $parsed['frontmatter'];
+                        $body = $parsed['body'];
                         
-                        // Validate slug with strict security checks
-                        $slugResult = $this->validateSlug($slug);
-                        if (!$slugResult['valid']) {
-                            $error = $slugResult['error'];
+                        $title = trim($fm['title'] ?? '');
+                        $slug = trim($fm['slug'] ?? '');
+                        $status = $fm['status'] ?? 'draft';
+                        $date = $fm['date'] ?? '';
+                        $id = $fm['id'] ?? '';
+
+                        if (empty($title)) {
+                            $error = 'Title is required in frontmatter.';
                         } else {
-                            $slug = $slugResult['slug'];
-                            
-                            // Determine if this content type uses dates
-                            $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
-                            
-                            // Generate filename if not provided
-                            if (empty($filename)) {
-                                $filename = ContentSecurity::generateFilename($slug, $usesDate ? ($date ?: date('Y-m-d')) : null);
+                            if (empty($slug)) {
+                                $slug = $this->generateSlug($title);
                             }
                             
-                            // Validate filename with strict security checks
-                            $filenameResult = $this->validateFilename($filename);
-                            if (!$filenameResult['valid']) {
-                                $error = 'Filename: ' . $filenameResult['error'];
+                            $slugResult = $this->validateSlug($slug);
+                            if (!$slugResult['valid']) {
+                                $error = $slugResult['error'];
                             } else {
-                                $filename = $filenameResult['filename'];
+                                $slug = $slugResult['slug'];
                                 
-                                // Check for duplicate (by filename, not slug - filename is the actual file)
-                                $existing = $repository->get($type, $slug);
-                                if ($existing !== null) {
-                                    $error = "Content with slug '{$slug}' already exists.";
+                                if (empty($filename)) {
+                                    $filename = ContentSecurity::generateFilename($slug, $usesDate ? ($date ?: date('Y-m-d')) : null);
+                                }
+                                
+                                $filenameResult = $this->validateFilename($filename);
+                                if (!$filenameResult['valid']) {
+                                    $error = 'Filename: ' . $filenameResult['error'];
                                 } else {
-                                    // Security check on body content
-                                    $security = new ContentSecurity();
-                                    $securityResult = $security->validate($body);
+                                    $filename = $filenameResult['filename'];
                                     
-                                    if (!$securityResult['valid']) {
-                                        $securityWarnings = $securityResult['errors'];
-                                        $error = $securityResult['errors'][0];
+                                    $existing = $repository->get($type, $slug);
+                                    if ($existing !== null) {
+                                        $error = "Content with slug '{$slug}' already exists.";
                                     } else {
-                                        $securityWarnings = $securityResult['warnings'];
+                                        $security = new ContentSecurity();
+                                        $securityResult = $security->validate($body);
                                         
-                                        // Validate status
-                                        if (!in_array($status, ['draft', 'published', 'unlisted'])) {
-                                            $status = 'draft';
-                                        }
-
-                                        // Create the content file from raw file content (using validated filename)
-                                        $result = $this->createContentFileRaw($type, $typeConfig, $filename, $fileContent, $id);
-
-                                        if ($result === true) {
-                                            $this->auth->regenerateCsrf();
-                                            $this->logAction('INFO', "Created {$type} '{$title}' (file: {$filename}.md, slug: {$slug})");
-                                            
-                                            // Rebuild cache
-                                            $this->app->indexer()->rebuild();
-                                            
-                                            return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($title));
+                                        if (!$securityResult['valid']) {
+                                            $securityWarnings = $securityResult['errors'];
+                                            $error = $securityResult['errors'][0];
                                         } else {
-                                            $error = $result;
+                                            $securityWarnings = $securityResult['warnings'];
+                                            
+                                            if (!in_array($status, ['draft', 'published', 'unlisted'])) {
+                                                $status = 'draft';
+                                            }
+
+                                            $result = $this->createContentFileRaw($type, $typeConfig, $filename, $fileContent, $id);
+
+                                            if ($result === true) {
+                                                $this->auth->regenerateCsrf();
+                                                $this->logAction('INFO', "Created {$type} '{$title}' (file: {$filename}.md, slug: {$slug})");
+                                                $this->app->indexer()->rebuild();
+                                                return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($title));
+                                            } else {
+                                                $error = $result;
+                                            }
                                         }
                                     }
                                 }
@@ -899,19 +911,68 @@ final class Controller
             $availableTerms[$taxName] = $repository->terms($taxName);
         }
 
+        // Field renderer for visual mode
+        $fieldRenderer = new \Ava\Fields\FieldRenderer($this->app);
+        
+        // Create a pseudo-item for the visual editor (with defaults or submitted values)
+        $typeLabel = rtrim($typeConfig['label'] ?? ucfirst($type), 's');
+        $typeSingular = strtolower($typeLabel);
+        $defaultSlug = 'new-' . $typeSingular;
+        
+        $pseudoFrontmatter = [
+            'id' => $submittedFields['id'] ?? '',
+            'title' => $submittedFields['title'] ?? 'New ' . $typeLabel,
+            'slug' => $submittedFields['slug'] ?? $defaultSlug,
+            'status' => $submittedFields['status'] ?? 'draft',
+            'date' => $submittedFields['date'] ?? date('Y-m-d'),
+            'excerpt' => $submittedFields['excerpt'] ?? '',
+            'meta_title' => $submittedFields['meta_title'] ?? '',
+            'meta_description' => $submittedFields['meta_description'] ?? '',
+            'og_image' => $submittedFields['og_image'] ?? '',
+            'canonical' => $submittedFields['canonical'] ?? '',
+            'noindex' => $submittedFields['noindex'] ?? false,
+            'template' => $submittedFields['template'] ?? '',
+            'order' => $submittedFields['order'] ?? '',
+            'cache' => true,
+        ];
+        
+        // Add taxonomy values
+        foreach ($typeConfig['taxonomies'] ?? [] as $taxName) {
+            $pseudoFrontmatter[$taxName] = $submittedFields[$taxName] ?? [];
+        }
+        
+        // Add custom field values
+        foreach ($typeConfig['fields'] ?? [] as $fieldName => $fieldConfig) {
+            $pseudoFrontmatter[$fieldName] = $submittedFields[$fieldName] ?? ($fieldConfig['default'] ?? null);
+        }
+        
+        $pseudoItem = new \Ava\Content\Item(
+            $pseudoFrontmatter,
+            $submittedFields['body'] ?? '',
+            '', // No file path for new content
+            $type
+        );
+
         $data = [
             'type' => $type,
+            'item' => $pseudoItem,
+            'fileParam' => '',
             'typeConfig' => $typeConfig,
             'taxonomyConfig' => $taxonomyConfig,
             'availableTerms' => $availableTerms,
             'error' => $error,
             'securityWarnings' => $securityWarnings,
             'csrf' => $this->auth->csrfToken(),
+            'fileMtime' => 0,
             'site' => [
                 'name' => $this->app->config('site.name'),
                 'url' => $this->app->config('site.base_url'),
             ],
             'user' => $this->auth->user(),
+            'fieldRenderer' => $fieldRenderer,
+            'app' => $this->app,
+            'isCreateMode' => true,
+            'defaultFilename' => $submittedFilename,
         ];
 
         $layout = [
@@ -919,12 +980,207 @@ final class Controller
             'heading' => 'Create ' . rtrim($typeConfig['label'] ?? ucfirst($type), 's'),
             'icon' => 'add',
             'activePage' => 'content-' . $type,
-            // Don't set alertError - the view handles error display inline
-            'headerActions' => '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+            'headerActions' => ($mode === 'raw') ? '' : '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+            'hidePageHeader' => ($mode !== 'raw'),
             'useCodeMirror' => true,
         ];
 
-        return Response::html($this->render('content/content-create', $data, $layout));
+        // Choose view based on mode - both use the same editor view now
+        if ($mode === 'raw') {
+            $viewName = 'content/content-create';
+        } else {
+            $viewName = 'content/content-editor';
+        }
+
+        return Response::html($this->render($viewName, $data, $layout));
+    }
+    
+    /**
+     * Handle visual editor form submission for content creation.
+     */
+    private function handleVisualCreateSubmission(Request $request, string $type, array $typeConfig): array
+    {
+        $fields = $request->post('fields', []);
+        $filename = trim($request->post('filename', ''));
+        
+        // Preserve submitted data for redisplay on error
+        $result = [
+            'success' => false,
+            'error' => '',
+            'warnings' => [],
+            'fields' => $fields,
+            'filename' => $filename,
+        ];
+        
+        // Extract and validate core fields
+        $title = trim($fields['title'] ?? '');
+        if (empty($title)) {
+            $result['error'] = 'Title is required.';
+            return $result;
+        }
+        
+        $slug = trim($fields['slug'] ?? '');
+        if (empty($slug)) {
+            $slug = $this->generateSlug($title);
+        }
+        
+        $slugResult = $this->validateSlug($slug);
+        if (!$slugResult['valid']) {
+            $result['error'] = $slugResult['error'];
+            return $result;
+        }
+        $slug = $slugResult['slug'];
+        
+        // Check for duplicate slug
+        $existing = $this->app->repository()->get($type, $slug);
+        if ($existing !== null) {
+            $result['error'] = "Content with slug '{$slug}' already exists.";
+            return $result;
+        }
+        
+        // Validate filename
+        $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
+        if (empty($filename)) {
+            $date = $fields['date'] ?? date('Y-m-d');
+            $filename = ContentSecurity::generateFilename($slug, $usesDate ? $date : null);
+        }
+        
+        $filenameResult = $this->validateFilename($filename);
+        if (!$filenameResult['valid']) {
+            $result['error'] = 'Filename: ' . $filenameResult['error'];
+            return $result;
+        }
+        $filename = $filenameResult['filename'];
+        $result['filename'] = $filename;
+        
+        // Get body content
+        $body = $fields['body'] ?? '';
+        unset($fields['body']);
+        
+        // Security check on body content
+        $security = new ContentSecurity();
+        $securityResult = $security->validate($body);
+        
+        if (!$securityResult['valid']) {
+            $result['error'] = $securityResult['errors'][0];
+            $result['warnings'] = $securityResult['errors'];
+            return $result;
+        }
+        $result['warnings'] = $securityResult['warnings'];
+        
+        // Validate custom fields
+        $fieldValidator = new \Ava\Fields\FieldValidator($this->app);
+        $fieldErrors = $fieldValidator->getErrors($fields, $type);
+        if (!empty($fieldErrors)) {
+            $result['error'] = $fieldErrors[0];
+            return $result;
+        }
+        
+        // Build frontmatter array
+        $frontmatter = [];
+        
+        // Generate ID if configured
+        $id = trim($fields['id'] ?? '');
+        if (empty($id)) {
+            $id = \Ava\Support\Ulid::generate();
+        }
+        $frontmatter['id'] = $id;
+        
+        // Core fields
+        $frontmatter['title'] = $title;
+        $frontmatter['slug'] = $slug;
+        $frontmatter['status'] = $fields['status'] ?? 'draft';
+        
+        // Date
+        if ($usesDate) {
+            $frontmatter['date'] = $fields['date'] ?? date('Y-m-d');
+        }
+        
+        // Order (for manual sorting)
+        $usesOrder = ($typeConfig['sorting'] ?? '') === 'manual';
+        if ($usesOrder && isset($fields['order']) && $fields['order'] !== '') {
+            $frontmatter['order'] = (int) $fields['order'];
+        }
+        
+        // Taxonomies
+        foreach ($typeConfig['taxonomies'] ?? [] as $taxName) {
+            $taxValue = $fields[$taxName] ?? [];
+            if (is_string($taxValue)) {
+                $taxValue = array_filter(array_map('trim', explode(',', $taxValue)));
+            }
+            if (!empty($taxValue)) {
+                $frontmatter[$taxName] = count($taxValue) === 1 ? $taxValue[0] : $taxValue;
+            }
+        }
+        
+        // Optional fields
+        if (!empty($fields['excerpt'])) {
+            $frontmatter['excerpt'] = $fields['excerpt'];
+        }
+        if (!empty($fields['meta_title'])) {
+            $frontmatter['meta_title'] = $fields['meta_title'];
+        }
+        if (!empty($fields['meta_description'])) {
+            $frontmatter['meta_description'] = $fields['meta_description'];
+        }
+        if (!empty($fields['og_image'])) {
+            $frontmatter['og_image'] = $fields['og_image'];
+        }
+        if (!empty($fields['canonical'])) {
+            $frontmatter['canonical'] = $fields['canonical'];
+        }
+        if (!empty($fields['noindex'])) {
+            $frontmatter['noindex'] = true;
+        }
+        if (!empty($fields['template'])) {
+            $frontmatter['template'] = $fields['template'];
+        }
+        
+        // Custom fields
+        $customFields = $typeConfig['fields'] ?? [];
+        foreach ($customFields as $fieldName => $fieldConfig) {
+            if (isset($fields[$fieldName]) && $fields[$fieldName] !== '' && $fields[$fieldName] !== []) {
+                $value = $fields[$fieldName];
+                
+                // Handle array fields (key-value pairs)
+                if (($fieldConfig['type'] ?? 'text') === 'array' && is_array($value)) {
+                    $isKeyValue = !empty($fieldConfig['keyValue']) || !empty($fieldConfig['associative']);
+                    if ($isKeyValue && isset($value[0]['key'])) {
+                        $processed = [];
+                        foreach ($value as $item) {
+                            if (!empty($item['key'])) {
+                                $processed[$item['key']] = $item['value'] ?? '';
+                            }
+                        }
+                        $value = $processed;
+                    } else {
+                        $value = array_filter($value, fn($v) => $v !== '');
+                    }
+                }
+                
+                if ($value !== '' && $value !== []) {
+                    $frontmatter[$fieldName] = $value;
+                }
+            }
+        }
+        
+        // Build file content
+        $yaml = \Symfony\Component\Yaml\Yaml::dump($frontmatter, 4, 2);
+        $fileContent = "---\n" . $yaml . "---\n\n" . $body;
+        
+        // Create the file
+        $createResult = $this->createContentFileRaw($type, $typeConfig, $filename, $fileContent, $id);
+        
+        if ($createResult === true) {
+            $result['success'] = true;
+            $result['title'] = $title;
+            $result['slug'] = $slug;
+            $result['filename'] = $filename;
+            return $result;
+        } else {
+            $result['error'] = $createResult;
+            return $result;
+        }
     }
 
     /**

@@ -2,6 +2,8 @@
 /**
  * Content Editor - Unified Field-Based Editor
  * 
+ * Works for BOTH creating new content AND editing existing content.
+ * 
  * A beautiful, intuitive content editor with:
  * - Enhanced Markdown editing with toolbar and syntax highlighting
  * - Organized field groups for custom fields
@@ -11,7 +13,7 @@
  * 
  * Available variables:
  * - $type: Content type slug
- * - $item: Content item being edited
+ * - $item: Content item being edited (or pseudo-item for create mode)
  * - $typeConfig: Content type configuration
  * - $taxonomyConfig: All taxonomy configurations
  * - $availableTerms: Terms available for each taxonomy
@@ -21,7 +23,12 @@
  * - $site: Site configuration
  * - $admin_url: Admin base URL
  * - $app: Application instance
+ * - $isCreateMode: bool - true when creating new content (optional, defaults to false)
+ * - $defaultFilename: string - default filename for create mode (optional)
  */
+
+// Determine if we're in create mode
+$isCreateMode = $isCreateMode ?? false;
 
 $taxonomiesForType = $typeConfig['taxonomies'] ?? [];
 $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
@@ -37,7 +44,9 @@ $currentUpdated = $item->updated()?->format('Y-m-d') ?? '';
 $currentId = $item->id() ?? '';
 $currentBody = $item->rawContent();
 $currentExcerpt = $item->excerpt() ?? '';
-$currentFilename = pathinfo(basename($item->filePath()), PATHINFO_FILENAME);
+$currentFilename = $isCreateMode 
+    ? ($defaultFilename ?? '')
+    : pathinfo(basename($item->filePath()), PATHINFO_FILENAME);
 $currentOrder = $item->order();
 $currentTemplate = $item->template() ?? '';
 
@@ -45,8 +54,9 @@ $currentTemplate = $item->template() ?? '';
 $cssAssets = $item->css();
 $jsAssets = $item->js();
 
-// Generate preview URL
+// Generate preview URL (for edit mode) or URL preview (for create mode)
 $baseUrl = rtrim($site['url'] ?? '', '/');
+$canPreview = !$isCreateMode;
 $urlType = $typeConfig['url']['type'] ?? 'pattern';
 $urlConfig = $typeConfig['url'] ?? [];
 
@@ -173,10 +183,17 @@ $groupLabels = [
             <div class="ce-breadcrumb">
                 <span class="ce-breadcrumb-type"><?= htmlspecialchars($typeLabel) ?></span>
                 <span class="ce-breadcrumb-sep">/</span>
-                <span class="ce-breadcrumb-title" id="header-title"><?= htmlspecialchars($currentTitle ?: 'Untitled') ?></span>
+                <span class="ce-breadcrumb-title" id="header-title"><?= htmlspecialchars($currentTitle ?: ($isCreateMode ? 'New ' . $typeLabel : 'Untitled')) ?></span>
             </div>
         </div>
         <div class="ce-header-right">
+            <?php if ($isCreateMode): ?>
+            <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create?mode=raw" 
+               class="ce-header-btn" title="Switch to raw YAML + Markdown editor">
+                <span class="material-symbols-rounded">code</span>
+                <span class="ce-btn-label">Raw File</span>
+            </a>
+            <?php else: ?>
             <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= htmlspecialchars($fileParam) ?>&mode=raw" 
                class="ce-header-btn" title="Edit raw YAML + Markdown file">
                 <span class="material-symbols-rounded">code</span>
@@ -186,9 +203,10 @@ $groupLabels = [
                 <span class="material-symbols-rounded">visibility</span>
                 <span class="ce-btn-label">Preview</span>
             </a>
+            <?php endif; ?>
             <button type="submit" form="content-editor-form" class="btn btn-primary">
-                <span class="material-symbols-rounded">save</span>
-                Save
+                <span class="material-symbols-rounded"><?= $isCreateMode ? 'add' : 'save' ?></span>
+                <?= $isCreateMode ? 'Create' : 'Save' ?>
             </button>
         </div>
     </header>
@@ -217,8 +235,13 @@ $groupLabels = [
     <?php endif; ?>
 
     <!-- Main Form -->
+    <?php if ($isCreateMode): ?>
+    <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" 
+          id="content-editor-form" class="ce-layout">
+    <?php else: ?>
     <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= htmlspecialchars($fileParam) ?>" 
           id="content-editor-form" class="ce-layout">
+    <?php endif; ?>
         <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
         <input type="hidden" name="_file_mtime" value="<?= htmlspecialchars((string) ($fileMtime ?? 0)) ?>">
         <input type="hidden" name="_editor_mode" value="visual">
@@ -656,6 +679,7 @@ $groupLabels = [
                         </label>
                     </div>
                     
+                    <?php if (!$isCreateMode): ?>
                     <div class="ce-danger-zone">
                         <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/delete" 
                            class="btn btn-danger-outline btn-sm">
@@ -663,6 +687,7 @@ $groupLabels = [
                             Delete this <?= htmlspecialchars(strtolower($typeLabel)) ?>
                         </a>
                     </div>
+                    <?php endif; ?>
                 </div>
             </details>
         </main>
@@ -775,11 +800,15 @@ $groupLabels = [
 
             <!-- Permalink Preview -->
             <div class="ce-sidebar-section">
-                <div class="ce-sidebar-label">Permalink</div>
+                <div class="ce-sidebar-label"><?= $isCreateMode ? 'URL Preview' : 'Permalink' ?></div>
                 <div class="ce-permalink">
+                    <?php if ($isCreateMode): ?>
+                    <span id="permalink-preview"><?= htmlspecialchars($previewUrlDisplay) ?></span>
+                    <?php else: ?>
                     <a href="<?= htmlspecialchars($previewUrl) ?>" target="_blank" id="permalink-preview">
                         <?= htmlspecialchars($previewUrlDisplay) ?>
                     </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </aside>
@@ -838,6 +867,8 @@ $groupLabels = [
 
 const ADMIN_URL = <?= json_encode($admin_url) ?>;
 const CONTENT_TYPE = <?= json_encode($type) ?>;
+const IS_CREATE_MODE = <?= $isCreateMode ? 'true' : 'false' ?>;
+const USES_DATE = <?= $usesDate ? 'true' : 'false' ?>;
 
 // =============================================================================
 // Markdown Editor (CodeMirror)
@@ -1087,6 +1118,18 @@ titleInput.addEventListener('input', () => {
 });
 
 // =============================================================================
+// Create mode: auto-sync slug to filename
+// =============================================================================
+if (IS_CREATE_MODE) {
+    const slugField = document.getElementById('field-slug');
+    if (slugField) {
+        slugField.addEventListener('input', () => {
+            updateFilenameFromSlug(slugField.value);
+        });
+    }
+}
+
+// =============================================================================
 // Status buttons
 // =============================================================================
 document.querySelectorAll('.ce-status-option input').forEach(radio => {
@@ -1221,6 +1264,25 @@ function generateSlugFromTitle() {
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
     document.getElementById('field-slug').value = slug;
+    
+    // In create mode, also update the filename based on the slug
+    if (IS_CREATE_MODE) {
+        updateFilenameFromSlug(slug);
+    }
+}
+
+function updateFilenameFromSlug(slug) {
+    // Generate filename from slug (remove slashes for nested pages)
+    const filenameSlug = slug.replace(/\//g, '-').replace(/^-|-$/g, '');
+    const filenameField = document.getElementById('field-filename');
+    
+    if (USES_DATE) {
+        const dateField = document.getElementById('field-date');
+        const date = dateField?.value || new Date().toISOString().split('T')[0];
+        filenameField.value = date + '-' + filenameSlug;
+    } else {
+        filenameField.value = filenameSlug;
+    }
 }
 
 function generateId() {
