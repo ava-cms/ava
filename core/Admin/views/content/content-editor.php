@@ -314,6 +314,9 @@ $groupLabels = [
                     </div>
                     <div class="ce-toolbar-spacer"></div>
                     <div class="ce-toolbar-group">
+                        <button type="button" class="ce-tool" data-action="linenumbers" title="Line numbers: On">
+                            <span class="material-symbols-rounded">format_list_numbered_rtl</span>
+                        </button>
                         <button type="button" class="ce-tool" data-action="wrap" title="Line wrap: Full width">
                             <span class="material-symbols-rounded">wrap_text</span>
                         </button>
@@ -1014,6 +1017,9 @@ function handleToolbarAction(action) {
         case 'wrap':
             toggleWrapMode();
             return;
+        case 'linenumbers':
+            toggleLineNumbers();
+            return;
     }
     
     insertAtCursor(insert);
@@ -1054,6 +1060,32 @@ if (window.AvaCodeMirror) {
     if (container) {
         window.AvaCodeMirror.setLineWrap(container, savedMode);
         updateWrapButton(savedMode);
+    }
+}
+
+// Line numbers toggle
+function toggleLineNumbers() {
+    const container = document.getElementById('ce-editor');
+    if (!container || !window.AvaCodeMirror) return;
+    
+    const newState = window.AvaCodeMirror.toggleLineNumbers(container);
+    updateLineNumbersButton(newState);
+}
+
+function updateLineNumbersButton(visible) {
+    const btn = document.querySelector('[data-action="linenumbers"]');
+    if (!btn) return;
+    btn.title = 'Line numbers: ' + (visible ? 'On' : 'Off');
+    btn.classList.toggle('active', visible);
+}
+
+// Initialize line numbers from saved preference
+if (window.AvaCodeMirror) {
+    const savedLineNumbers = window.AvaCodeMirror.getSavedLineNumbers();
+    const container = document.getElementById('ce-editor');
+    if (container) {
+        window.AvaCodeMirror.setLineNumbers(container, savedLineNumbers);
+        updateLineNumbersButton(savedLineNumbers);
     }
 }
 
