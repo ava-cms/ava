@@ -421,42 +421,6 @@ window.AvaCodeMirror = {
     getSavedLineNumbers,
 };
 
-// Auto-initialize editors with data-codemirror attribute
-// Note: Manual initialization is preferred - this is for fallback/convenience
-// Set data-codemirror-manual="true" to disable auto-init for specific editors
-document.addEventListener('DOMContentLoaded', async () => {
-    const editors = document.querySelectorAll('[data-codemirror]');
-    for (const el of editors) {
-        // Skip if already initialized or if manual init is specified
-        if (el._cmView) continue;
-        if (el.dataset.codemirrorManual === 'true') continue;
-        
-        // Skip if an editor element already exists inside (created by manual init)
-        if (el.querySelector('.cm-editor')) continue;
-        
-        // Find the hidden textarea that holds the value
-        const parent = el.closest('.editor-wrapper') || el.closest('.ce-editor-wrapper') || el.parentElement;
-        const textarea = parent?.querySelector('textarea.editor-hidden-input');
-        
-        if (textarea) {
-            const language = el.dataset.codemirror || 'markdown';
-            const form = textarea.closest('form');
-            
-            await createEditor(el, {
-                content: textarea.value,
-                language,
-                onChange: (value) => {
-                    textarea.value = value;
-                },
-                onSave: form ? () => form.submit() : undefined,
-            });
-            
-            // Hide original textarea
-            textarea.style.display = 'none';
-        }
-    }
-});
-
 // Listen for theme changes
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
