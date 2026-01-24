@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ava\Routing;
 
 use Ava\Application;
+use Ava\Content\Repository;
 use Ava\Http\Request;
 use Ava\Http\Response;
 use Ava\Plugins\Hooks;
@@ -119,7 +120,7 @@ final class Router
 
         // 4. Check exact routes (from cache)
         if (isset($routes['exact'][$path])) {
-            return $this->handleExactRoute($routes['exact'][$path], $request);
+            return $this->handleExactRoute($routes['exact'][$path], $repository, $request);
         }
 
         // 4b. Preview mode: try to match unpublished content by URL pattern
@@ -143,13 +144,13 @@ final class Router
 
             // Exact match to taxonomy base (index of all terms)
             if ($path === $base) {
-                return $this->handleTaxonomyIndex($taxName, $request);
+                return $this->handleTaxonomyIndex($taxName, $repository->terms($taxName));
             }
 
             // Match term under taxonomy base
             if (str_starts_with($path, $base . '/')) {
                 $termPath = substr($path, strlen($base) + 1);
-                return $this->handleTaxonomyTerm($taxName, $termPath, $request);
+                return $this->handleTaxonomyTerm($taxName, $termPath, $repository, $request);
             }
         }
 
@@ -234,13 +235,11 @@ final class Router
     /**
      * Handle an exact route match.
      */
-    private function handleExactRoute(array $routeData, Request $request): ?RouteMatch
+    private function handleExactRoute(array $routeData, Repository $repository, Request $request): ?RouteMatch
     {
         $type = $routeData['type'] ?? 'single';
 
         if ($type === 'single') {
-            $repository = $this->app->repository();
-
             // Use file path for lookup (more reliable for hierarchical content)
             if (!isset($routeData['file'])) {
                 return null;
@@ -286,11 +285,8 @@ final class Router
     /**
      * Handle taxonomy index route.
      */
-    private function handleTaxonomyIndex(string $taxonomy, Request $request): RouteMatch
+    private function handleTaxonomyIndex(string $taxonomy, array $terms): RouteMatch
     {
-        $repository = $this->app->repository();
-        $terms = $repository->terms($taxonomy);
-
         return new RouteMatch(
             type: 'taxonomy_index',
             taxonomy: [
@@ -304,9 +300,8 @@ final class Router
     /**
      * Handle taxonomy term route.
      */
-    private function handleTaxonomyTerm(string $taxonomy, string $termPath, Request $request): ?RouteMatch
+    private function handleTaxonomyTerm(string $taxonomy, string $termPath, Repository $repository, Request $request): ?RouteMatch
     {
-        $repository = $this->app->repository();
         $term = $repository->term($taxonomy, $termPath);
 
         if ($term === null) {

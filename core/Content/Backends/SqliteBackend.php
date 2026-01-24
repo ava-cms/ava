@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Ava\Content\Backends;
 
-use Ava\Application;
-
 /**
  * SQLite Backend
  *
@@ -24,17 +22,17 @@ use Ava\Application;
  */
 final class SqliteBackend implements BackendInterface
 {
-    private Application $app;
     private ?\PDO $pdo = null;
-    private ?string $dbPath = null;
+    private string $dbPath;
 
     // Prepared statements cache
     private array $statements = [];
 
-    public function __construct(Application $app)
-    {
-        $this->app = $app;
-        $this->dbPath = $this->app->configPath('storage') . '/cache/content_index.sqlite';
+    public function __construct(
+        private string $storagePath,
+        private string $contentPath
+    ) {
+        $this->dbPath = $this->storagePath . '/cache/content_index.sqlite';
     }
 
     /**
@@ -805,7 +803,7 @@ final class SqliteBackend implements BackendInterface
             'status' => $row['status'],
             'date' => $row['date'],
             'updated' => $row['updated_at'],
-            'file_path' => $this->app->configPath('content') . '/' . $row['file_path'],
+            'file_path' => $this->contentPath . '/' . $row['file_path'],
             'relative_path' => $row['file_path'],
             'template' => $row['template'],
             'excerpt' => $row['excerpt'],

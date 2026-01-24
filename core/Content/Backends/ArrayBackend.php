@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Ava\Content\Backends;
 
-use Ava\Application;
-
 /**
  * Array Backend
  *
@@ -22,8 +20,6 @@ use Ava\Application;
  */
 final class ArrayBackend implements BackendInterface
 {
-    private Application $app;
-
     // In-memory cache
     private ?array $contentIndex = null;
     private ?array $taxIndex = null;
@@ -31,10 +27,10 @@ final class ArrayBackend implements BackendInterface
     private ?array $recentCache = null;
     private ?array $slugLookup = null;
 
-    public function __construct(Application $app)
-    {
-        $this->app = $app;
-    }
+    public function __construct(
+        private string $storagePath,
+        private string $contentPath
+    ) {}
 
     /**
      * {@inheritdoc}
@@ -76,7 +72,7 @@ final class ArrayBackend implements BackendInterface
         return [
             'type' => $type,
             'slug' => $slug,
-            'file_path' => $this->app->configPath('content') . '/' . $entry['file'],
+            'file_path' => $this->contentPath . '/' . $entry['file'],
             'relative_path' => $entry['file'],
             'id' => $entry['id'] ?? null,
             'status' => $entry['status'] ?? 'published',
@@ -538,7 +534,7 @@ final class ArrayBackend implements BackendInterface
         }
 
         // Verify HMAC signature before deserializing (prevents tampering)
-        $cacheDir = $this->app->configPath('storage') . '/cache';
+        $cacheDir = $this->storagePath . '/cache';
         $payload = \Ava\Content\Indexer::verifyAndExtractPayload($content, $cacheDir);
         if ($payload === null) {
             return [];
@@ -567,6 +563,6 @@ final class ArrayBackend implements BackendInterface
 
     private function getCachePath(string $filename): string
     {
-        return $this->app->configPath('storage') . '/cache/' . $filename;
+        return $this->storagePath . '/cache/' . $filename;
     }
 }

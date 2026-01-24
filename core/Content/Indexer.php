@@ -185,7 +185,10 @@ final class Indexer
      */
     private function writeSqliteIndex(array $allItems, array $taxIndex, array $routes, array $fingerprint): void
     {
-        $sqlite = new SqliteBackend($this->app);
+        $sqlite = new SqliteBackend(
+            $this->app->configPath('storage'),
+            $this->app->configPath('content')
+        );
         
         try {
             // Create fresh database

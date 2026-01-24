@@ -75,8 +75,11 @@ final class Repository
         // Check config - default is 'array'
         $configBackend = $this->app->config('content_index.backend', 'array');
 
+        $storagePath = $this->app->configPath('storage');
+        $contentPath = $this->app->configPath('content');
+
         if ($configBackend === 'sqlite') {
-            $sqlite = new SqliteBackend($this->app);
+            $sqlite = new SqliteBackend($storagePath, $contentPath);
             if ($sqlite->isAvailable()) {
                 return $sqlite;
             }
@@ -84,7 +87,7 @@ final class Repository
             // Fall back to array with a warning would be ideal, but for now just fall back
         }
 
-        return new ArrayBackend($this->app);
+        return new ArrayBackend($storagePath, $contentPath);
     }
 
     /**
@@ -92,10 +95,13 @@ final class Repository
      */
     private function createBackend(string $name): BackendInterface
     {
+        $storagePath = $this->app->configPath('storage');
+        $contentPath = $this->app->configPath('content');
+
         return match ($name) {
-            'sqlite' => new SqliteBackend($this->app),
-            'array' => new ArrayBackend($this->app),
-            default => new ArrayBackend($this->app),
+            'sqlite' => new SqliteBackend($storagePath, $contentPath),
+            'array' => new ArrayBackend($storagePath, $contentPath),
+            default => new ArrayBackend($storagePath, $contentPath),
         };
     }
 

@@ -574,6 +574,9 @@ final class Controller
         $error = null;
         $success = null;
 
+        // Detect custom fields used in other terms of this taxonomy
+        $knownCustomFields = $this->detectTaxonomyCustomFields($taxonomy);
+
         if ($request->isMethod('POST')) {
             // CSRF check
             $csrf = $request->post('_csrf', '');
@@ -583,6 +586,23 @@ final class Controller
                 $name = trim($request->post('name', ''));
                 $slug = trim($request->post('slug', ''));
                 $description = trim($request->post('description', ''));
+
+                // Process custom fields
+                $customFieldsRaw = $request->post('custom_fields', []);
+                $customFields = [];
+                if (is_array($customFieldsRaw)) {
+                    foreach ($customFieldsRaw as $field) {
+                        $key = trim($field['key'] ?? '');
+                        $value = trim($field['value'] ?? '');
+                        // Validate key: lowercase alphanumeric with underscores only
+                        if ($key !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $key)) {
+                            // Don't allow overriding standard fields
+                            if (!in_array($key, ['slug', 'name', 'description'], true)) {
+                                $customFields[$key] = $value;
+                            }
+                        }
+                    }
+                }
 
                 // Validate name
                 if (empty($name)) {
@@ -605,7 +625,7 @@ final class Controller
                             $error = "A term with slug '{$slug}' already exists.";
                         } else {
                             // Add term to taxonomy file
-                            $result = $this->addTaxonomyTerm($taxonomy, $slug, $name, $description);
+                            $result = $this->addTaxonomyTerm($taxonomy, $slug, $name, $description, $customFields);
                             if ($result === true) {
                                 $this->auth->regenerateCsrf();
                                 $this->logAction('INFO', "Created term '{$name}' in taxonomy '{$taxonomy}'");
@@ -627,6 +647,7 @@ final class Controller
             'taxonomy' => $taxonomy,
             'config' => $config,
             'error' => $error,
+            'knownCustomFields' => $knownCustomFields,
             'csrf' => $this->auth->csrfToken(),
             'site' => [
                 'name' => $this->app->config('site.name'),
@@ -748,8 +769,20 @@ final class Controller
         $config = $taxonomyConfig[$taxonomy] ?? [];
         $error = null;
 
-        // Load raw term data from file for editing (includes description)
+        // Load raw term data from file for editing (includes description and custom fields)
         $rawTermData = $this->loadTaxonomyTermData($taxonomy, $term);
+
+        // Detect custom fields used in other terms of this taxonomy
+        $knownCustomFields = $this->detectTaxonomyCustomFields($taxonomy);
+
+        // Extract existing custom fields from this term
+        $standardFields = ['slug', 'name', 'description'];
+        $existingCustomFields = [];
+        foreach ($rawTermData as $key => $value) {
+            if (!in_array($key, $standardFields, true)) {
+                $existingCustomFields[$key] = $value;
+            }
+        }
 
         if ($request->isMethod('POST')) {
             // CSRF check
@@ -760,6 +793,23 @@ final class Controller
                 $name = trim($request->post('name', ''));
                 $newSlug = trim($request->post('slug', ''));
                 $description = trim($request->post('description', ''));
+
+                // Process custom fields
+                $customFieldsRaw = $request->post('custom_fields', []);
+                $customFields = [];
+                if (is_array($customFieldsRaw)) {
+                    foreach ($customFieldsRaw as $field) {
+                        $key = trim($field['key'] ?? '');
+                        $value = trim($field['value'] ?? '');
+                        // Validate key: lowercase alphanumeric with underscores only
+                        if ($key !== '' && preg_match('/^[a-z][a-z0-9_]*$/', $key)) {
+                            // Don't allow overriding standard fields
+                            if (!in_array($key, $standardFields, true)) {
+                                $customFields[$key] = $value;
+                            }
+                        }
+                    }
+                }
 
                 // Validate name
                 if (empty($name)) {
@@ -781,7 +831,7 @@ final class Controller
                             $error = "A term with slug '{$newSlug}' already exists.";
                         } else {
                             // Update term in taxonomy file
-                            $result = $this->updateTaxonomyTerm($taxonomy, $term, $newSlug, $name, $description);
+                            $result = $this->updateTaxonomyTerm($taxonomy, $term, $newSlug, $name, $description, $customFields);
                             if ($result === true) {
                                 $this->auth->regenerateCsrf();
                                 $this->logAction('INFO', "Updated term '{$term}' in taxonomy '{$taxonomy}'" . ($newSlug !== $term ? " (slug changed to '{$newSlug}')" : ''));
@@ -806,6 +856,8 @@ final class Controller
             'rawTermData' => $rawTermData,
             'config' => $config,
             'error' => $error,
+            'knownCustomFields' => $knownCustomFields,
+            'existingCustomFields' => $existingCustomFields,
             'csrf' => $this->auth->csrfToken(),
             'site' => [
                 'name' => $this->app->config('site.name'),
@@ -1710,8 +1762,10 @@ final class Controller
 
     /**
      * Add a term to a taxonomy file.
+     *
+     * @param array<string, string> $customFields Optional custom fields as key-value pairs
      */
-    private function addTaxonomyTerm(string $taxonomy, string $slug, string $name, string $description): bool|string
+    private function addTaxonomyTerm(string $taxonomy, string $slug, string $name, string $description, array $customFields = []): bool|string
     {
         $contentBase = $this->app->configPath('content');
         $taxonomiesPath = Path::join($contentBase, '_taxonomies');
@@ -1761,6 +1815,12 @@ final class Controller
         ];
         if (!empty($description)) {
             $newTerm['description'] = $description;
+        }
+        // Add custom fields
+        foreach ($customFields as $key => $value) {
+            if ($key !== '' && $value !== '') {
+                $newTerm[$key] = $value;
+            }
         }
         $terms[] = $newTerm;
 
@@ -1862,9 +1922,65 @@ final class Controller
     }
 
     /**
-     * Update an existing term in a taxonomy file.
+     * Detect custom fields used across all terms in a taxonomy.
+     *
+     * Returns a list of field names (excluding standard fields: slug, name, description).
+     *
+     * @return array<string>
      */
-    private function updateTaxonomyTerm(string $taxonomy, string $oldSlug, string $newSlug, string $name, string $description): bool|string
+    private function detectTaxonomyCustomFields(string $taxonomy): array
+    {
+        $contentBase = $this->app->configPath('content');
+        $taxonomiesPath = Path::join($contentBase, '_taxonomies');
+        $filePath = Path::join($taxonomiesPath, $taxonomy . '.yml');
+
+        if (!file_exists($filePath)) {
+            return [];
+        }
+
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            return [];
+        }
+
+        try {
+            $terms = \Symfony\Component\Yaml\Yaml::parse(
+                $content,
+                \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE
+            ) ?? [];
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if (!is_array($terms)) {
+            return [];
+        }
+
+        // Standard fields to exclude
+        $standardFields = ['slug', 'name', 'description'];
+        $customFields = [];
+
+        foreach ($terms as $term) {
+            if (!is_array($term)) {
+                continue;
+            }
+            foreach (array_keys($term) as $key) {
+                if (!in_array($key, $standardFields, true) && !in_array($key, $customFields, true)) {
+                    $customFields[] = $key;
+                }
+            }
+        }
+
+        sort($customFields);
+        return $customFields;
+    }
+
+    /**
+     * Update an existing term in a taxonomy file.
+     *
+     * @param array<string, string> $customFields Optional custom fields as key-value pairs
+     */
+    private function updateTaxonomyTerm(string $taxonomy, string $oldSlug, string $newSlug, string $name, string $description, array $customFields = []): bool|string
     {
         $contentBase = $this->app->configPath('content');
         $taxonomiesPath = Path::join($contentBase, '_taxonomies');
@@ -1910,6 +2026,15 @@ final class Controller
                 ];
                 if (!empty($description)) {
                     $terms[$key]['description'] = $description;
+                }
+                // Add custom fields
+                foreach ($customFields as $fieldKey => $fieldValue) {
+                    if ($fieldKey !== '') {
+                        if ($fieldValue !== '') {
+                            $terms[$key][$fieldKey] = $fieldValue;
+                        }
+                        // Empty value removes the field (don't add it)
+                    }
                 }
                 $found = true;
                 break;

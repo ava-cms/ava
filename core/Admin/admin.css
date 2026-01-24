@@ -5578,3 +5578,114 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     }
 }
 
+/* ============================================
+   Term Custom Fields
+   ============================================ */
+.term-custom-fields-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.term-custom-field-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.term-field-key {
+    flex: 0 0 180px;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.term-field-separator {
+    color: var(--text-tertiary);
+    font-weight: 600;
+    user-select: none;
+}
+
+.term-field-value {
+    flex: 1;
+}
+
+.term-field-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--text-tertiary);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.term-field-remove:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: var(--danger-subtle);
+}
+
+.term-field-remove:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.term-field-remove .material-symbols-rounded {
+    font-size: 16px;
+}
+
+.known-fields-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+}
+
+.known-field-tag {
+    display: inline-block;
+    padding: var(--sp-1) var(--sp-2);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.code-hint {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-2) var(--sp-3);
+    margin: 0;
+    overflow-x: auto;
+}
+
+.code-hint code {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: pre;
+}
+
+@media (max-width: 600px) {
+    .term-custom-field-row {
+        flex-wrap: wrap;
+    }
+    
+    .term-field-key {
+        flex: 1 1 100%;
+    }
+    
+    .term-field-separator {
+        display: none;
+    }
+    
+    .term-field-value {
+        flex: 1 1 calc(100% - 40px);
+    }
+}
