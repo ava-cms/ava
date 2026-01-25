@@ -522,6 +522,52 @@ final class Repository
         return [];
     }
 
+    // === Search Synonyms ===
+
+    /** @var array<string, array<string>>|null */
+    private ?array $synonymsCache = null;
+
+    /**
+     * Get search synonyms map (word => [synonyms]).
+     * Loaded from storage/cache/synonyms.bin, built during ./ava rebuild.
+     */
+    public function getSynonyms(): array
+    {
+        if ($this->synonymsCache !== null) {
+            return $this->synonymsCache;
+        }
+
+        $cacheDir = $this->app->configPath('storage') . '/cache';
+        $cachePath = $cacheDir . '/synonyms.bin';
+        
+        if (!file_exists($cachePath)) {
+            return $this->synonymsCache = [];
+        }
+        
+        $content = file_get_contents($cachePath);
+        if ($content === false || strlen($content) < 36) {
+            return $this->synonymsCache = [];
+        }
+        
+        $payload = Indexer::verifyAndExtractPayload($content, $cacheDir);
+        if ($payload === null) {
+            return $this->synonymsCache = [];
+        }
+        
+        $prefix = substr($payload, 0, 3);
+        $data = substr($payload, 3);
+        
+        if ($prefix === 'IG:' && function_exists('igbinary_unserialize')) {
+            return $this->synonymsCache = igbinary_unserialize($data) ?: [];
+        }
+
+        if ($prefix === 'SZ:') {
+            return $this->synonymsCache = unserialize($data, ['allowed_classes' => false]) ?: [];
+        }
+
+        return $this->synonymsCache = [];
+    }
+
     // === Cache Management ===
 
     /**
@@ -531,5 +577,6 @@ final class Repository
     {
         $this->backend()->clearMemoryCache();
         $this->htmlCache = null;
+        $this->synonymsCache = null;
     }
 }

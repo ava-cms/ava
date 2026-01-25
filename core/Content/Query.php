@@ -535,10 +535,17 @@ final class Query
         $phrase = strtolower($this->search);
         $tokens = preg_split('/\s+/', $phrase, -1, PREG_SPLIT_NO_EMPTY);
 
+        // Expand tokens with synonyms (each token becomes [original, syn1, syn2, ...])
+        $synonyms = $this->repository->getSynonyms();
+        $expandedTokens = array_map(
+            fn($t) => array_unique(array_merge([$t], $synonyms[$t] ?? [])),
+            $tokens
+        );
+
         // Score each item
         $scored = [];
         foreach ($items as $data) {
-            $score = $this->scoreItemRaw($data, $phrase, $tokens);
+            $score = $this->scoreItemRaw($data, $phrase, $expandedTokens);
             if ($score > 0) {
                 $scored[] = ['data' => $data, 'score' => $score];
             }
@@ -551,9 +558,22 @@ final class Query
     }
 
     /**
+     * Check if any variant in a token group matches the text.
+     */
+    private function matchesAny(string $text, array $variants): bool
+    {
+        foreach ($variants as $v) {
+            if (str_contains($text, $v)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Score raw item data for search relevance.
      */
-    private function scoreItemRaw(array $data, string $phrase, array $tokens): int
+    private function scoreItemRaw(array $data, string $phrase, array $expandedTokens): int
     {
         $score = 0;
         $title = strtolower($data['title'] ?? '');
@@ -577,28 +597,23 @@ final class Query
             'field_weight' => 5,
         ], $this->searchWeights ?? []);
 
-        // Title phrase match
+        // Title phrase match (exact only)
         if ($w['title_phrase'] > 0 && str_contains($title, $phrase)) {
             $score += $w['title_phrase'];
         }
 
-        // Title contains all tokens
-        $allInTitle = true;
-        $tokenHits = 0;
-        foreach ($tokens as $token) {
-            if (str_contains($title, $token)) {
-                $tokenHits++;
-            } else {
-                $allInTitle = false;
+        // Title token matches (with synonyms)
+        $titleHits = 0;
+        foreach ($expandedTokens as $variants) {
+            if ($this->matchesAny($title, $variants)) {
+                $titleHits++;
             }
         }
-        if ($allInTitle && count($tokens) > 1 && $w['title_all_tokens'] > 0) {
+        if ($titleHits === count($expandedTokens) && count($expandedTokens) > 1 && $w['title_all_tokens'] > 0) {
             $score += $w['title_all_tokens'];
         }
-
-        // Title token hits
         if ($w['title_token'] > 0) {
-            $score += min($w['title_token_max'], $tokenHits * $w['title_token']);
+            $score += min($w['title_token_max'], $titleHits * $w['title_token']);
         }
 
         // Excerpt phrase match
@@ -606,15 +621,15 @@ final class Query
             $score += $w['excerpt_phrase'];
         }
 
-        // Excerpt token hits
+        // Excerpt token matches
         if ($w['excerpt_token'] > 0) {
-            $excerptHits = 0;
-            foreach ($tokens as $token) {
-                if (str_contains($excerpt, $token)) {
-                    $excerptHits++;
+            $hits = 0;
+            foreach ($expandedTokens as $variants) {
+                if ($this->matchesAny($excerpt, $variants)) {
+                    $hits++;
                 }
             }
-            $score += min($w['excerpt_token_max'], $excerptHits * $w['excerpt_token']);
+            $score += min($w['excerpt_token_max'], $hits * $w['excerpt_token']);
         }
 
         // Body phrase match
@@ -622,15 +637,15 @@ final class Query
             $score += $w['body_phrase'];
         }
 
-        // Body token hits
+        // Body token matches
         if ($w['body_token'] > 0) {
-            $bodyHits = 0;
-            foreach ($tokens as $token) {
-                if (str_contains($body, $token)) {
-                    $bodyHits++;
+            $hits = 0;
+            foreach ($expandedTokens as $variants) {
+                if ($this->matchesAny($body, $variants)) {
+                    $hits++;
                 }
             }
-            $score += min($w['body_token_max'], $bodyHits * $w['body_token']);
+            $score += min($w['body_token_max'], $hits * $w['body_token']);
         }
 
         // Custom field matches
@@ -638,12 +653,11 @@ final class Query
             $meta = $data['meta'] ?? [];
             foreach ($w['fields'] as $field) {
                 $value = strtolower((string) ($meta[$field] ?? ''));
-                if ($value === '') {
-                    continue;
-                }
-                foreach ($tokens as $token) {
-                    if (str_contains($value, $token)) {
-                        $score += $w['field_weight'];
+                if ($value !== '') {
+                    foreach ($expandedTokens as $variants) {
+                        if ($this->matchesAny($value, $variants)) {
+                            $score += $w['field_weight'];
+                        }
                     }
                 }
             }

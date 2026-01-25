@@ -103,6 +103,18 @@ final class Indexer
         $this->writeBinaryCacheFile('slug_lookup.bin', $slugLookup);
         $this->writeJsonCacheFile('fingerprint.json', $fingerprint);
 
+        // Build search synonyms cache if file exists
+        $synonyms = $this->buildSynonymsCache();
+        if (!empty($synonyms)) {
+            $this->writeBinaryCacheFile('synonyms.bin', $synonyms);
+        } else {
+            // Clean up stale synonyms cache
+            $synonymsPath = $this->getCachePath('synonyms.bin');
+            if (file_exists($synonymsPath)) {
+                @unlink($synonymsPath);
+            }
+        }
+
         // Pre-render HTML if enabled (trades rebuild time for faster page loads)
         if ($this->app->config('content_index.prerender_html', false)) {
             $htmlCache = $this->buildHtmlCache($allItems);
@@ -1126,5 +1138,54 @@ final class Indexer
 
         // Rotate current log to .1
         rename($logFile, $logFile . '.1');
+    }
+
+    /**
+     * Build search synonyms from content/_search/synonyms.yml.
+     * Each group like [photo, image, picture] creates bidirectional mappings.
+     */
+    private function buildSynonymsCache(): array
+    {
+        $path = $this->app->configPath('content') . '/_search/synonyms.yml';
+        
+        if (!file_exists($path)) {
+            return [];
+        }
+        
+        try {
+            $groups = \Symfony\Component\Yaml\Yaml::parseFile($path, \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+        } catch (\Throwable $e) {
+            $this->logErrors(['Failed to parse synonyms.yml: ' . $e->getMessage()]);
+            return [];
+        }
+        
+        if (!is_array($groups)) {
+            return [];
+        }
+        
+        // Build bidirectional map: each word points to all other words in its group
+        $map = [];
+        foreach ($groups as $group) {
+            if (!is_array($group) || count($group) < 2) {
+                continue;
+            }
+            
+            // Normalize to lowercase, filter empty
+            $words = array_values(array_unique(array_filter(
+                array_map(fn($w) => is_string($w) ? strtolower(trim($w)) : '', $group)
+            )));
+            
+            if (count($words) < 2) {
+                continue;
+            }
+            
+            // Each word maps to all OTHER words in its group
+            foreach ($words as $word) {
+                $others = array_values(array_filter($words, fn($w) => $w !== $word));
+                $map[$word] = array_values(array_unique(array_merge($map[$word] ?? [], $others)));
+            }
+        }
+        
+        return $map;
     }
 }
