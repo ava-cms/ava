@@ -21,7 +21,7 @@ use Ava\Application;
 final class Engine
 {
     /** Regex pattern for matching shortcodes (self-closing and paired) */
-    private const SHORTCODE_PATTERN = '/\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^]]+)?)\](?:([^[]*)\[\/\1\])?/';
+    private const SHORTCODE_PATTERN = '/\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^\]]+)?)\](?:([^[]*)\[\/\1\])?/';
 
     private Application $app;
 
@@ -85,6 +85,8 @@ final class Engine
         if ($attrString === '') {
             return $attrs;
         }
+        // Decode HTML entities (markdown may have encoded quotes)
+        $attrString = html_entity_decode($attrString, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         // Pattern for key="value" or key='value' or key=value or just key
         $pattern = '/([a-zA-Z_][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s\]]+))|([a-zA-Z_][a-zA-Z0-9_-]*)/';

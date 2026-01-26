@@ -128,6 +128,19 @@ final class EngineTest extends TestCase
         // This is a known issue and should be fixed in a future version
     }
 
+    public function testShortcodesHandleHtmlEncodedAttributes(): void
+    {
+        // Simulate what markdown processor does - it HTML-encodes quotes
+        $input = '[test slug=&quot;coolors&quot;]';
+
+        $this->engine->register('test', function ($attrs) {
+            return $attrs['slug'] ?? 'MISSING';
+        });
+
+        $result = $this->engine->process($input);
+        $this->assertEquals('coolors', $result);
+    }
+
     public function testProcessHandlesBooleanAttributes(): void
     {
         $this->engine->register('bool', function ($attrs) {
