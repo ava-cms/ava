@@ -6,7 +6,7 @@
     "bin": ["ava"],
     "require": {
         "php": "^8.3",
-        "league/commonmark": "^2.6",
+        "league/commonmark": "^2.8",
         "symfony/yaml": "^7.2"
     },
     "require-dev": {

@@ -1579,6 +1579,9 @@ document.addEventListener('keydown', e => {
 // Form validation
 // =============================================================================
 document.getElementById('content-editor-form').addEventListener('submit', e => {
+    // Sync editor content before validation/submission
+    hiddenInput.value = getEditorContent();
+
     const title = titleInput.value.trim();
     const slug = document.getElementById('field-slug').value.trim();
     
