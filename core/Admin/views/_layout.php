@@ -174,7 +174,7 @@ if (file_exists($cmCssFile)) {
                         <a href="https://ava.addy.zone/themes" target="_blank" rel="noopener noreferrer">Themes</a>
                         <a href="https://ava.addy.zone/plugins" target="_blank" rel="noopener noreferrer">Plugins</a>
                         <a href="https://github.com/avacms/ava" target="_blank" rel="noopener noreferrer">GitHub</a>
-                        <a href="https://discord.gg/fZwW4jBVh5" target="_blank" rel="noopener noreferrer">Discord</a>
+                        <a href="https://github.com/orgs/avacms/discussions" target="_blank" rel="noopener noreferrer">Discussions</a>
                         <a href="https://github.com/avacms/ava/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
                     </nav>
                 </div>

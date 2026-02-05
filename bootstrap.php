@@ -15,8 +15,8 @@ if (php_sapi_name() !== 'cli' && !defined('AVA_START')) {
     exit('Direct access denied.');
 }
 
-// Ava version (SemVer: MAJOR.MINOR.PATCH)
-define('AVA_VERSION', '1.2.3');
+// Ava version (CalVer: YY.M.PATCH - e.g., 26.2.0 = first patch of Feb 2026)
+define('AVA_VERSION', '26.2.0');
 
 // Ensure we have a root constant
 if (!defined('AVA_ROOT')) {

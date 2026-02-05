@@ -9,7 +9,7 @@ namespace Ava;
  *
  * Handles checking for and applying updates from GitHub.
  *
- * Version Format: SemVer MAJOR.MINOR.PATCH (e.g., 1.0.0)
+ * Version Format: CalVer YY.M.PATCH (e.g., 26.2.0 = first patch of Feb 2026)
  *
  * What gets updated:
  * - core/, docs/, ava (CLI), bootstrap.php, composer.json
@@ -147,16 +147,7 @@ final class Updater
             }
 
             $latest = ltrim($release['tag_name'], 'v');
-            
-            // Special case: Version 25+ is assumed to be old CalVer format (2025, 2026, etc.)
-            // and should always be considered older than current semantic versions.
-            // If we ever reach version 25 in SemVer, we can revisit this logic!
-            $currentMajor = (int) explode('.', $current)[0];
-            if ($currentMajor >= 25) {
-                $available = false; // Treat CalVer versions as outdated
-            } else {
-                $available = version_compare($latest, $current, '>');
-            }
+            $available = version_compare($latest, $current, '>');
 
             $result = [
                 'available' => $available,

@@ -31,7 +31,6 @@
 [![Stars](https://img.shields.io/github/stars/AvaCMS/ava)](https://github.com/AvaCMS/ava/stargazers)
 [![Code size](https://img.shields.io/github/languages/code-size/AvaCMS/ava)](https://github.com/AvaCMS/ava)
 [![License](https://img.shields.io/github/license/AvaCMS/ava)](https://github.com/AvaCMS/ava/blob/main/LICENSE)
-[![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/fZwW4jBVh5)
 
 Ava CMS is a modern flat-file CMS for people who want a website they can **understand**, **move**, **scale** and **keep**.
 
@@ -202,10 +201,10 @@ See https://ava.addy.zone/docs/performance
 
 If you’d like to contribute core code, open an issue first so we can agree on approach and scope. You can submit your own plugins, themes and websites directly to the docs showcase. 
 
-Feedback and suggestions are always welcome! If you're trying Ava and face any friction, please open an issue or join the Discord and let us know.
+Feedback and suggestions are always welcome! If you're trying Ava and face any friction, please open an issue or start a discussion and let us know.
 
 - Bugs, questions, and ideas: https://github.com/avacms/ava/issues
-- Chat & support: https://discord.gg/fZwW4jBVh5
+- Chat & support: https://github.com/orgs/avacms/discussions
 - Community themes: https://ava.addy.zone/themes
 - Community plugins: https://ava.addy.zone/plugins
 - Sites built with Ava: https://ava.addy.zone/showcase
