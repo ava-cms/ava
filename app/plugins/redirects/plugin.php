@@ -25,7 +25,8 @@ use Ava\Plugins\Hooks;
  * Status codes supported by this plugin.
  * Codes with 'redirect' => true require a destination URL.
  */
-const REDIRECT_STATUS_CODES = [
+if (!defined('REDIRECT_STATUS_CODES'))
+define('REDIRECT_STATUS_CODES', [
     301 => ['label' => 'Moved Permanently', 'redirect' => true, 'description' => 'SEO-friendly permanent redirect. Browsers cache this.'],
     302 => ['label' => 'Found (Temporary)', 'redirect' => true, 'description' => 'Temporary redirect. Not cached by browsers.'],
     307 => ['label' => 'Temporary Redirect', 'redirect' => true, 'description' => 'Like 302, but preserves request method (POST stays POST).'],
@@ -34,7 +35,7 @@ const REDIRECT_STATUS_CODES = [
     418 => ['label' => "I'm a Teapot", 'redirect' => false, 'description' => 'The server refuses to brew coffee because it is a teapot. ☕'],
     451 => ['label' => 'Unavailable For Legal Reasons', 'redirect' => false, 'description' => 'Blocked due to legal demands (DMCA, court order, etc.).'],
     503 => ['label' => 'Service Unavailable', 'redirect' => false, 'description' => 'Temporarily down for maintenance.'],
-];
+]);
 
 return [
     'name' => 'Redirects',

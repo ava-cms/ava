@@ -110,7 +110,7 @@ $generateUrlPath = function($item, $typeConfig, $app) {
 };
 
 // Get just the URL path for an item from routes (or generate for drafts)
-$getContentPath = function($item) use ($routes, $typeConfig, $type, $generateUrlPath, $app) {
+$getContentPath = function($item) use ($routes, $typeConfig, $type, $generateUrlPath, $ava) {
     $itemType = $item->type();
     $slug = $item->slug();
     
@@ -122,7 +122,7 @@ $getContentPath = function($item) use ($routes, $typeConfig, $type, $generateUrl
     }
     
     // For drafts/unlisted, generate URL using proper logic
-    return $generateUrlPath($item, $typeConfig, $app);
+    return $generateUrlPath($item, $typeConfig, $ava);
 };
 
 // Build full URL for content item (with preview support for drafts)

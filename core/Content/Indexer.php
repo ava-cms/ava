@@ -854,9 +854,12 @@ final class Indexer
     {
         $fingerprint = [];
 
+        $activeTheme = $this->app->config('theme', 'default');
+
         $watchDirs = [
             'content' => $this->app->configPath('content'),
             'config' => $this->app->path('app/config'),
+            'theme' => $this->app->configPath('themes') . '/' . $activeTheme,
         ];
 
         foreach ($watchDirs as $name => $path) {
